@@ -1,0 +1,14 @@
+REM DIM I%
+REM LET I%=12
+REM PRINT I%+3
+
+DIM I%(1)
+LET I%(1) = 7
+LET I%(2) = 9
+
+PRINT I%(1)+3
+PRINT I%(2)*5
+PRINT I%(3)
+
+END
+

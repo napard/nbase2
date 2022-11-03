@@ -1,0 +1,19 @@
+{
+    "files.associations": {
+        "limits": "c",
+        "stdint.h": "c",
+        "stdint-gcc.h": "c",
+        "cctype": "c",
+        "cmath": "c",
+        "cstdarg": "c",
+        "cstdio": "c",
+        "cstdlib": "c",
+        "type_traits": "c",
+        "*.tcc": "c",
+        "cfenv": "c",
+        "cstdbool": "c",
+        "cstdint": "c",
+        "typeinfo": "c",
+        "nbase.h": "c"
+    }
+}

@@ -1,0 +1,49 @@
+LET lisn% = 12
+
+Set number of lines listed with LIST.
+
+-----
+
+. program
+
+Load 'program.nbs' and execute it.
+
+. "my prog"
+
+Load 'my prog.nbs' and execute it (file with spaces in its name goes between quotation marks).
+
+-----
+
+LIST
+
+-----
+
+: 10 PRINT "Hola"
+
+Replace contents of line 10.
+
+-----
+
+? "Hola!!!"
+
+Alias for PRINT
+
+-----
+
+Tokenized code.
+
+-----
+
+Program editor.
+
+-----
+
+See COMAL for ideas and reference.
+See COBOL for ideas and reference.
+See XBase for ideas and reference.
+
+-----
+
+Evaluate metaprogramming capabilities (EVAL, Wren's meta features).
+
+

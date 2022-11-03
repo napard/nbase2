@@ -1,0 +1,29 @@
+{
+    "tasks": [
+        {
+            "type": "cppbuild",
+            "label": "C/C++: gcc-9 compilar archivo activo",
+            "command": "/usr/bin/gcc",
+            "args": [
+                "-Wall",
+                "-g",
+                "${workspaceFolder}/src/core/main.c",
+                "-o",
+                "${workspaceFolder}/nbase",
+                "-lm"
+            ],
+            "options": {
+                "cwd": "${fileDirname}"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "detail": "Tarea generada por el depurador."
+        }
+    ],
+    "version": "2.0.0"
+}

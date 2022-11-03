@@ -1,0 +1,8 @@
+DIM I%(1)
+DIM J(1)
+LET J(1) = 4.778
+LET J(2) = 7R
+LET I = J
+PRINT J(1)+ 1.2
+PRINT J(2)
+PRINT I

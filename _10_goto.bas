@@ -1,0 +1,4 @@
+DIM S$
+LET S$="Test"
+PRINT S$
+GOTO 2
