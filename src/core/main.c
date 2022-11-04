@@ -57,12 +57,28 @@ In data area:
 /* Output malloc/free debugging info to standard console output. */ 
 /* #define NBASE_DEBUG_MALLOC */
 /* Output garbage collector's debugging info to standard console output. */ 
-/* #define NBASE_DEBUG_GC */
+#define NBASE_DEBUG_GC
 /* Enable color escape sequences to standard console output. */
 #define NBASE_USE_ESCAPE_ANSI_COLORS
 
 /* Enable setjmp/longjmp error recovering. */
 #define NBASE_ENABLE_LONGJMP_ERROR_RECOVERY
+
+#ifdef NBASE_USE_ESCAPE_ANSI_COLORS
+#define NBASE_PRINT_CYAN       "\x1b[36m"
+#define NBASE_PRINT_MAGENTA    "\x1b[35m"
+#define NBASE_PRINT_GREEN      "\x1b[32m"
+#define NBASE_PRINT_YELLOW     "\x1b[33m"
+#define NBASE_PRINT_RED        "\x1b[31m"
+#define NBASE_PRINT_DEFAULT    "\x1b[0m"
+#else
+#define NBASE_PRINT_CYAN       ""
+#define NBASE_PRINT_MAGENTA    ""
+#define NBASE_PRINT_GREEN      ""
+#define NBASE_PRINT_YELLOW     ""
+#define NBASE_PRINT_RED        ""
+#define NBASE_PRINT_DEFAULT    ""
+#endif /* NBASE_USE_ESCAPE_ANSI_COLORS */
 
 /* Enable/disable features or commands. */
 #define NBASE_INCLUDE_FEATURE_DEBUGTOOLS
@@ -153,6 +169,8 @@ In data area:
 #define NBASE_END_OBJECT(struct_name) \
     } struct_name;
 
+#define NBASE_TOKENIZING (g_state.state_flags & nbase_state_flag_TOKENIZING)
+
 /* -------------------------------------------------------------------------------- */
 /* Type definitions. */
 
@@ -181,13 +199,15 @@ typedef enum _nbase_token
     nbase_token_NEGATED = '%', nbase_token_MOD = 256, nbase_token_LSHIFT, nbase_token_RSHIFT,
     nbase_token_LESS, nbase_token_LESSEQ, nbase_token_GREATER, nbase_token_GREATEREQ,
     nbase_token_NEQUALS, nbase_token_AND, nbase_token_OR, nbase_token_XOR,
-    nbase_token_NOT, nbase_token_GC, nbase_token_END, nbase_token_CLEAR,
-    nbase_token_LIST, nbase_token_GOTO, nbase_token_LOADLINE,
+    nbase_token_NOT, nbase_token_GC, nbase_token_END, /*nbase_token_CLEAR,*/
+    nbase_token_LIST, /*nbase_token_GOTO,*/ nbase_token_LOADLINE, nbase_token_RUN,
 #ifdef NBASE_INCLUDE_FEATURE_DEBUGTOOLS
     nbase_token_LVAR, nbase_token_STAT, nbase_token_DUMP,
 #endif /* NBASE_INCLUDE_FEATURE_DEBUGTOOLS */
 
-    nbase_token_EOL
+    nbase_token_NL,
+    nbase_token_EOL,
+    nbase_token_LAST
 } nbase_token;
 
 /*! Data types. */
@@ -322,9 +342,9 @@ typedef enum _nbase_error_type
     nbase_error_type_EXPECTED_IDENTIFIER, nbase_error_type_EXPECTED_END_OF_LINE,
     nbase_error_type_UNEXPECTED_TOKEN, nbase_error_type_EXPECTED_EQUALS,
     nbase_error_type_EXPECTED_THEN, nbase_error_type_INCOMPATIBLE_ASSIGNMENT,
-    nbase_error_type_UNRECOGNIZED_LEXER_TOKEN, nbase_error_type_CANT_OPEN_INPUT_FILE,
+    nbase_error_type_UNRECOGNIZED_LEXER_TOKEN, /*nbase_error_type_CANT_OPEN_INPUT_FILE,*/
     nbase_error_type_DIVISION_BY_ZERO, nbase_error_type_DOM_ERROR_1,
-    nbase_error_type_DOM_ERROR_2
+    nbase_error_type_DOM_ERROR_2, nbase_error_type_unknown_TOKEN
 } nbase_error_type;
 
 /*! Variable structure. */
@@ -357,14 +377,63 @@ void                nbase_error(nbase_error_type pErrType, const char* pSrcFile,
                         uint32_t pSrcLine, const char* pMsg, ...);
 void                nbase_internal_error(const char *pMsg,
                         const char* pSrcFile, const char* pSrcFunc, uint32_t pSrcLine, ...);
+void                nbase_rtrim(char* pStr);
+void                nbase_skip_spaces();
+nbase_keyword*      nbase_search_keyword(const char* pToken);
+nbase_token         nbase_search_keyword_token(const char* pToken);
+void                nbase_parse_colon();
+nbase_token         nbase_parse_number();
+NBASE_BOOL          nbase_parse_identifier(NBASE_BOOL pVariableName);
+int32_t             nbase_parse_single_char_token(char pTest, bool pUpdateParent);
 int32_t             nbase_get_next_token(NBASE_BOOL pInterpret, NBASE_BOOL pVariableName);
 void                nbase_reset_state();
+
+#define KEYWORDS_DEFINITIONS
+#include "keywords.c"
+#define TOKEN_DEFINITIONS
+#include "token.c"
+#define RUN_DEFINITIONS
+#include "run.c"
+
+#ifdef NBASE_INCLUDE_FEATURE_DEBUGTOOLS
+#define DEBUGTOOLS_LVAR_DEFINITIONS
+#include "../debugtools/lvar.c"
+#define DEBUGTOOLS_STAT_DEFINITIONS
+#include "../debugtools/stat.c"
+#define DEBUGTOOLS_DUMP_DEFINITIONS
+#include "../debugtools/dump.c"
+#endif /* NBASE_INCLUDE_FEATURE_DEBUGTOOLS */
 
 /* -------------------------------------------------------------------------------- */
 
 #define NBASE_IMPLEMENTATION
 
 #ifdef NBASE_IMPLEMENTATION
+
+/*! Global interpreter state. */
+nbase_state g_state;
+/*! Temporal buffer. */
+char g_temp_buff[NBASE_MAX_LINE_LEN_PLUS_1];
+
+/* -------------------------------------------------------------------------------- */
+
+#define KEYWORDS_IMPLEMENTATION
+#include "keywords.c"
+#define TOKEN_IMPLEMENTATION
+#include "token.c"
+#define RUN_IMPLEMENTATION
+#include "run.c"
+
+#ifdef NBASE_INCLUDE_FEATURE_DEBUGTOOLS
+#define DEBUGTOOLS_LVAR_IMPLEMENTATION
+#include "../debugtools/lvar.c"
+#define DEBUGTOOLS_STAT_IMPLEMENTATION
+#include "../debugtools/stat.c"
+#define DEBUGTOOLS_DUMP_IMPLEMENTATION
+#include "../debugtools/dump.c"
+#endif /* NBASE_INCLUDE_FEATURE_DEBUGTOOLS */
+
+/* -------------------------------------------------------------------------------- */
 
 static const char* THIS_FILE = "main.c";
 
@@ -377,40 +446,77 @@ char *g_nbase_type_names[] =
     "STRING"
 };
 
-const char* g_nbase_error_messages[] = {
-    "(PARSERR1) error when parsing number",
-    "(PARSERR2) unknown symbol",
-    "(PARSERR2.1) duplicated symbol",
-    "(PARSERR3) unrecognized parser token",
-    "(PARSERR4) expected keyword",
-    "(PARSERR5) unknown keyword",
-    "(PARSERR6) invalid operands to unary",
-    "(PARSERR7) invalid operands to binary",
-    "(PARSERR8) parentheses mismatch",
-    "(PARSERR9) expected positive value",
-    "(PARSERR10) expected negative value",
-    "(PARSERR11) expected zero",
-    "(PARSERR12) expected expression",
-    "(PARSERR13) expected integer expression for array dimension",
-    "(PARSERR14) unterminated string",
-    "(PARSERR15) reserved word used for symbol",
-    "(PARSERR16) expected identifier",
-    "(PARSERR17) expected end of line",
-    "(PARSERR18) unexpected token",
-    "(PARSERR19) expected '='",
-    "(PARSERR19.1) expected 'THEN'",
-    "(PARSERR20) incompatible types in assignment",
-    "(LEXERR1) unrecognized lexer token",
-    "(OTHERERR1) can't open input file",
-    "(MATHERR1) division by zero",
-    "(MATHERR2) dom error 1, FE_INVALID raised",
-    "(MATHERR3) dom error 2, FE_DIVBYZERO raised"
+/*! Keyword table. */
+nbase_keyword g_nbase_keywords[] =
+{
+    {"PRINT",           /*nbase_keyword_PRINT*/NULL,    nbase_token_PRINT},
+    {"REM",             /*nbase_keyword_REM*/NULL,      nbase_token_REM},
+    {"DIM",             /*nbase_keyword_DIM*/NULL,      nbase_token_DIM},
+    {"LET",             /*nbase_keyword_LET*/NULL,      nbase_token_LET},
+
+    {"MOD",             NULL,                   nbase_token_MOD},
+
+    {"LSHIFT",          NULL,                   nbase_token_LSHIFT},
+    {"RSHIFT",          NULL,                   nbase_token_RSHIFT},
+    {"<=",              NULL,                   nbase_token_LESSEQ},
+    {">=",              NULL,                   nbase_token_GREATEREQ},
+    {"<>",              NULL,                   nbase_token_NEQUALS},
+
+    {"AND",             NULL,                   nbase_token_AND},
+    {"OR",              NULL,                   nbase_token_OR},
+    {"XOR",             NULL,                   nbase_token_XOR},
+    {"NOT",             NULL,                   nbase_token_NOT},
+    {"GC",              /*nbase_keyword_GC*/NULL,       nbase_token_GC},
+    {"END",             nbase_keyword_END,      nbase_token_END},
+    /*{"CLEAR",           nbase_keyword_CLEAR,    nbase_token_CLEAR},*/
+    {"LIST",            /*nbase_keyword_LIST*/NULL,     nbase_token_LIST},
+    /*{"GOTO",            *nbase_keyword_GOTO,     nbase_token_GOTO},*/
+#if 0
+    {"IF#",             nbase_keyword_IF_NUM,   nbase_token_IF_NUM},
+#endif
+    {"RUN",             nbase_keyword_RUN,      nbase_token_RUN},
+    
+#ifdef NBASE_INCLUDE_FEATURE_DEBUGTOOLS
+    {"LVAR",            nbase_keyword_LVAR,     nbase_token_LVAR},
+    {"STAT",            nbase_keyword_STAT,     nbase_token_STAT},
+    {"DUMP",            nbase_keyword_DUMP,     nbase_token_DUMP},
+#endif /* NBASE_INCLUDE_FEATURE_DEBUGTOOLS */    
+    
+    {".",               nbase_keyword_LOADLINE, nbase_token_LOADLINE},
+    
+    {NULL,              NULL,                   0}
 };
 
-/*! Global interpreter state. */
-nbase_state g_state;
-/*! Temporal buffer. */
-char g_temp_buff[NBASE_MAX_LINE_LEN_PLUS_1];
+const char* g_nbase_error_messages[] = {
+    "(PARSERR1) NUMBER PARSE ERROR",
+    "(PARSERR2) UNKNOWN SYMBOL",
+    "(PARSERR2.1) DUPLICATED SYMBOL",
+    "(PARSERR3) UNRECOGNIZED TOKEN BY PARSER",
+    "(PARSERR4) EXPECTED KEYWORD",
+    "(PARSERR5) UNKNOWN KEYWORD",
+    "(PARSERR6) INVALID OPERANDS TO UNARY",
+    "(PARSERR7) INVALID OPERANDS TO BINARY",
+    "(PARSERR8) PARENTHESES MISMATCH",
+    "(PARSERR9) EXPECTED POSITIVE VALUE",
+    "(PARSERR10) EXPECTED NEGATIVE VALUE",
+    "(PARSERR11) EXPECTED ZERO",
+    "(PARSERR12) EXPECTED EXPRESSION",
+    "(PARSERR13) EXPECTED INTEGER EXPRESSION FOR ARRAY DIMENSION",
+    "(PARSERR14) UNTERMINATED STRING",
+    "(PARSERR15) RESERVED WORD USED FOR SYMBOL",
+    "(PARSERR16) EXPECTED IDENTIFIER",
+    "(PARSERR17) EXPECTED END OF LINE",
+    "(PARSERR18) UNEXPECTED TOKEN",
+    "(PARSERR19) EXPECTED '='",
+    "(PARSERR19.1) EXPECTED 'THEN'",
+    "(PARSERR20) INCOMPATIBLE TYPES IN ASSIGNMENT",
+    "(LEXERR1) UNRECOGNIZED TOKEN BY LEXER",
+    /*"(OTHERERR1) CAN'T OPEN INPUT FILE",*/
+    "(MATHERR1) DIVISION BY ZERO",
+    "(MATHERR2) DOM ERROR 1, FE_INVALID RAISED",
+    "(MATHERR3) DOM ERROR 2, FE_DIVBYZERO RAISED",
+    "(RUNERR1) UNKNOWN TOKEN"
+};
 
 /* ******************************************************************************** */
 
@@ -710,8 +816,13 @@ void nbase_error(nbase_error_type pErrType, const char* pSrcFile, const char* pS
 
     va_start(vargs, pMsg);
 
-    NBASE_PRINTF("ERROR (%s:%s:%d)[%d]: %s",
+#ifdef NBASE_DEBUG__
+    NBASE_PRINTF("ERROR (%s: %s(): %d)[%d]: %s",
         pSrcFile, pSrcFunc, pSrcLine, g_state.in_line + 1, g_nbase_error_messages[pErrType - 1]);
+#else
+    NBASE_PRINTF("ERROR[%d]: %s",
+        g_state.in_line + 1, g_nbase_error_messages[pErrType - 1]);
+#endif /* NBASE_DEBUG */
     vprintf(pMsg, vargs);
 
     va_end(vargs);
@@ -733,7 +844,7 @@ void nbase_internal_error(const char *pMsg,
 
     va_start(vargs, pSrcLine);
 
-    NBASE_PRINTF("INTERNAL ERROR (%s:%s:%d)[%d]: ",
+    NBASE_PRINTF("INTERNAL ERROR (%s: %s(): %d)[%d]: ",
         pSrcFile, pSrcFunc, pSrcLine, g_state.in_line + 1);
     vprintf(pMsg, vargs);
     NBASE_PRINT("\nInterpreter terminated.\n");
@@ -742,10 +853,535 @@ void nbase_internal_error(const char *pMsg,
     exit(-1);
 }
 
+/* ******************************************************************************** */
+
+void nbase_rtrim(char* pStr)
+{
+    char* p = pStr + strlen(pStr) - 1;
+    while(isspace(*p))
+    {
+        *p = '\0';
+        p--;
+    }
+}
+
+/* ******************************************************************************** */
+
+void nbase_skip_spaces()
+{
+    while (*g_state.nextchar && *g_state.nextchar == ' ')
+        g_state.nextchar++;
+}
+
+/* ******************************************************************************** */
+
+nbase_keyword* nbase_search_keyword(const char* pToken)
+{
+    nbase_keyword* kw = g_nbase_keywords;
+    while (kw->keyword)
+    {
+        if (!strcmp(kw->keyword, pToken))
+            return kw;
+        kw++;
+    }
+
+    return NULL;
+}
+
+/* ******************************************************************************** */
+
+nbase_token nbase_search_keyword_token(const char* pToken)
+{
+    nbase_keyword* kw = nbase_search_keyword(pToken);
+    if(kw)
+        return kw->token;
+
+    return nbase_token_NONE;
+}
+
+/* ******************************************************************************** */
+
+void nbase_parse_colon()
+{
+    g_state.next_tok = nbase_get_next_token(false, false);
+    if(g_state.next_tok != nbase_token_COLON)
+    {
+        NBASE_ASSERT_OR_ERROR(g_state.next_tok == nbase_token_EOL,
+            nbase_error_type_EXPECTED_END_OF_LINE, KEYWORDS_FILE, __FUNCTION__, __LINE__, "");
+    }
+}
+
+/* ******************************************************************************** */
+
+NBASE_FLOAT ten(NBASE_INTEGER pE)
+{
+    NBASE_FLOAT x, t;
+
+    x = 1.0f;
+    t = 10.0f;
+    while (pE > 0)
+    {
+        if (pE % 2)
+        {
+            x = t * x;
+        }
+        t = t * t;
+        pE = pE / 2;
+    }
+    return x;
+}
+
+/* ******************************************************************************** */
+
+/* NOTE(Pablo): number parsing method and routine taken
+    from official Oberon 07 compiler. */
+#define NUM_ERROR(msg) printf(msg "\n");
+#define MAX_EXPONENT 38
+
+nbase_token nbase_parse_number()
+{
+    char c = 0;
+    const NBASE_INTEGER max = 2147483647; /* 2^31 - 1 */
+
+    NBASE_INTEGER i, k, e, n, s, h;
+    NBASE_FLOAT x;
+    NBASE_INTEGER d[16];
+    NBASE_BOOL negE;
+
+    g_state.int32val = 0, g_state.fltval = 0, i = 0, n = 0, k = 0;
+    c = *g_state.nextchar++;
+    do
+    {
+        if (n < 16)
+        {
+            d[n] = c - 0x30;
+            n++;
+        }
+        else
+        {
+            NUM_ERROR("Too many digits for number");
+            n = 0;
+            return nbase_token_LEXER_ERROR;
+        }
+        c = *g_state.nextchar++;
+    } while ((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F'));
+    
+    if(c != '.' && c != 'H' && c != 'R' && c != 'X')
+        g_state.nextchar--;
+
+    if (c == 'H' || c == 'R' || c == 'X') /* Hex. */
+    {
+        do
+        {
+            h = d[i];
+            if (h >= 10)
+            {
+                h = h - 7;
+            }
+            k = k * 0x10 + h;
+            i++; /* No overflow check. */
+        } while (i != n);
+
+        if (c == 'X') /* Hex literal sufix. */
+        {
+            if (k < 0x100)
+            {
+                g_state.int32val = k;
+                return nbase_token_INTEGER_LITERAL;
+            }
+            else
+            {
+                NUM_ERROR("Illegal value for 'X' prefix, expected hexadecimal value < 100H");
+                g_state.int32val = 0;
+                return nbase_token_LEXER_ERROR;
+            }
+        }
+        else if (c == 'R') /* Real literal sufix. */
+        {
+            g_state.fltval = k;
+            return nbase_token_FLOAT_LITERAL;
+        }
+        else
+        {
+            g_state.int32val = k;
+            return nbase_token_INTEGER_LITERAL;
+        }
+    }
+    else if (c == '.')
+    {
+        c = *g_state.nextchar++;
+        /* Real number. */
+        {
+            x = 0.0f;
+            e = 0;
+            do
+            { /* Integer part */
+                x = x * 10.0f + (float)d[i];
+                i++;
+            } while (i != n);
+            while (c >= '0' && c <= '9')
+            { /* Fraction. */
+                x = x * 10.0f + (float)(c - 0x30);
+                e--;
+                c = *g_state.nextchar++;
+            }
+            
+            if(c != 'E' && c != 'D')
+                g_state.nextchar--;
+
+            if (c == 'E' || c == 'D')
+            { /* Scale factor. */
+                c = *g_state.nextchar++;
+                s = 0;
+                if (c == '-')
+                {
+                    negE = true;
+                    c = *g_state.nextchar++;
+                }
+                else
+                {
+                    negE = false;
+                    if (c == '+')
+                    {
+                        c = *g_state.nextchar++;
+                    }
+                }
+                if (c >= '0' && c <= '9')
+                {
+                    do
+                    {
+                        s = s * 10 + c - 0x30;
+                        c = *g_state.nextchar++;
+                    } while (c >= '0' && c <= '9');
+                    g_state.nextchar--;
+                    if (negE)
+                    {
+                        e = e - s;
+                    }
+                    else
+                    {
+                        e = e + s;
+                    }
+                }
+                else
+                {
+                    NUM_ERROR("Expected at least one digit for exponent value");
+                    return nbase_token_LEXER_ERROR;
+                }
+            }
+            if (e < 0)
+            {
+                if (e >= -MAX_EXPONENT)
+                {
+                    x = x / ten(-e);
+                }
+                else
+                {
+                    /* Too small, return 0.0. */
+                    x = 0.0f;
+                }
+            }
+            else if (e > 0)
+            {
+                if (e <= MAX_EXPONENT)
+                {
+                    x = ten(e) * x;
+                }
+                else
+                {
+                    /* Exponent too large. */
+                    x = 0.0f;
+                    NUM_ERROR("Number too large");
+                    return nbase_token_LEXER_ERROR;
+                }
+            }
+            g_state.fltval = x;
+            return nbase_token_FLOAT_LITERAL;
+        }
+    }
+    else
+    {
+        /* Base 10 integer. */
+        do
+        {
+            if (d[i] < 10)
+            {
+                if (k <= (max - d[i]) / 10)
+                {
+                    k = k * 10 + d[i];
+                }
+                else
+                {
+                    NUM_ERROR("Number too large");
+                    k = 0;
+                    return nbase_token_LEXER_ERROR;
+                }
+            }
+            else
+            {
+                NUM_ERROR("Bad integer");
+                return nbase_token_LEXER_ERROR;
+            }
+            i++;
+        } while (i != n);
+        g_state.int32val = k;
+        return nbase_token_INTEGER_LITERAL;
+    }
+    
+    return nbase_token_LEXER_ERROR;
+}
+
+/* ******************************************************************************** */
+
+NBASE_BOOL nbase_parse_identifier(NBASE_BOOL pVariableName)
+{
+    uint32_t i = 0;
+    g_state.token[i++] = *g_state.nextchar++;
+
+    /* TODO(Pablo): check identifier string too long. */
+
+    while (isalnum(*g_state.nextchar) || *g_state.nextchar == '_' || *g_state.nextchar == '#')
+    {
+        if(pVariableName && i >= 4)
+            break;
+        
+        g_state.token[i++] = *g_state.nextchar++;
+    }
+
+    /* Check for type sentinel. */
+    if(pVariableName && (*g_state.nextchar == '$' || *g_state.nextchar == '%'))
+    {
+        g_state.token[i++] = *g_state.nextchar++;
+    }
+
+    g_state.token[i] = '\0';
+
+    return true;
+}
+
+/* ******************************************************************************** */
+
+int32_t nbase_parse_single_char_token(char pTest, bool pUpdateParent)
+{
+    int32_t tok = 0;
+    const char *tmp;
+    
+    if (pTest)
+    {
+        tmp = g_state.nextchar;
+        g_state.nextchar = &pTest;
+    }
+
+    if (*g_state.nextchar == '\n')
+    {
+        tok = nbase_token_EOL;
+        goto end;
+    }
+    else if (*g_state.nextchar == '(')
+    {
+        tok = nbase_token_LEFTPAREN;
+        goto end;
+    }
+    else if (*g_state.nextchar == ')')
+    {
+        if(pUpdateParent)
+        {
+            g_state.paren_level--;
+            NBASE_ASSERT_OR_ERROR(g_state.paren_level >= 0,
+                nbase_error_type_PARENTHESES_MISMATCH, THIS_FILE, __FUNCTION__, __LINE__, "");
+        }
+        tok = nbase_token_RIGHTPAREN;
+        goto end;
+    }
+    else if (*g_state.nextchar == ';')
+    {
+        tok = nbase_token_SEMICOLON;
+        goto end;
+    }
+    else if (*g_state.nextchar == ':')
+    {
+        tok = nbase_token_COLON;
+        goto end;
+    }
+    else if (*g_state.nextchar == ',')
+    {
+        tok = nbase_token_COMMA;
+        goto end;
+    }
+    else if (*g_state.nextchar == '+')
+    {
+        tok = nbase_token_PLUS;
+        goto end;
+    }
+    else if (*g_state.nextchar == '-')
+    {
+        tok = nbase_token_MINUS;
+        goto end;
+    }
+    else if (*g_state.nextchar == '%')
+    {
+        tok = nbase_token_NEGATED;
+        goto end;
+    }
+    else if (*g_state.nextchar == '*')
+    {
+        tok = nbase_token_MUL;
+        goto end;
+    }
+    else if (*g_state.nextchar == '/')
+    {
+        tok = nbase_token_DIV;
+        goto end;
+    }
+    else if (*g_state.nextchar == '=')
+    {
+        tok = nbase_token_EQ;
+        goto end;
+    }
+    else if (*g_state.nextchar == '^')
+    {
+        tok = nbase_token_POW;
+        goto end;
+    }
+    else if (*g_state.nextchar == '<')
+    {
+        if(*(g_state.nextchar + 1) == '=')
+            return nbase_search_keyword_token("<=");
+        if(*(g_state.nextchar + 1) == '>')
+            return nbase_search_keyword_token("<>");
+        tok = nbase_token_LESS;
+        goto end;
+    }
+    else if (*g_state.nextchar == '>')
+    {
+        if(*(g_state.nextchar + 1) == '=')
+            return nbase_search_keyword_token(">=");
+        tok = nbase_token_GREATER;
+        goto end;
+    }
+
+end:
+
+    if (pTest)
+    {
+        g_state.nextchar = tmp;
+    }
+
+    return tok;
+}
+
+/* ******************************************************************************** */
+
 int32_t nbase_get_next_token(NBASE_BOOL pInterpret, NBASE_BOOL pVariableName)
 {
+    const char *start;
+    nbase_token tok = nbase_token_NONE;
+    
+    g_state.token[0] = '\0';
+    
+    nbase_skip_spaces();
 
+    /* If we are interpreting a command, don't accept anything that's not and
+        identifier. */
+    if(pInterpret && !isalpha(*g_state.nextchar) && *g_state.nextchar != '_' &&
+        *g_state.nextchar != '.' &&
+        *g_state.nextchar != '\n' && *g_state.nextchar != '\0')
+    {
+        nbase_rtrim((char*)g_state.nextchar);
+        nbase_error(nbase_error_type_UNEXPECTED_TOKEN,
+             THIS_FILE, __FUNCTION__, __LINE__, ": %s", g_state.nextchar);
+    }
+    
+    if (*g_state.nextchar == '.' &&
+        g_state.state_flags & nbase_state_flag_TOKENIZING)
+    {
+        /* TODO(Pablo): do nothing for now. */
+        return nbase_token_EOL;
+    }
+    
+    if (*g_state.nextchar == '\0')
+        return nbase_token_EOL;
+
+    start = g_state.nextchar;
+    
+    /* Number. */
+    if (isdigit(*g_state.nextchar))
+    {
+        return nbase_parse_number();
+    }
+    /* Single char token. */
+    else if ((tok = nbase_parse_single_char_token(0, false)))
+    {
+        /* Special case for compound operators based on single chars. */
+        if(tok == nbase_token_LESSEQ ||
+            tok == nbase_token_GREATEREQ ||
+            tok == nbase_token_NEQUALS)
+        {
+            g_state.nextchar += 2;
+            return tok;
+        }
+        g_state.nextchar++;
+        return nbase_parse_single_char_token(*(g_state.nextchar - 1), true);
+    }
+    /* String literal. */
+    else if (*g_state.nextchar == '"')
+    {
+        uint32_t l;
+        
+        do
+        {
+            g_state.nextchar++;
+        } while (*g_state.nextchar && *g_state.nextchar != '"');
+        NBASE_ASSERT_OR_ERROR(*g_state.nextchar == '"',
+            nbase_error_type_UNTERMINATED_STRING, THIS_FILE, __FUNCTION__, __LINE__, "");
+        g_state.nextchar++;
+
+        l = (g_state.nextchar - start) > (NBASE_MAX_TOKEN_LEN - 1) ? NBASE_MAX_TOKEN_LEN - 1 : g_state.nextchar - start;
+        snprintf(g_state.token, l + 1, "%s", start);
+
+        return nbase_token_STRING;
+    }
+    /* Keyword or identifier. */
+    else if (isalpha(*g_state.nextchar) || *g_state.nextchar == '_' || *g_state.nextchar == '.')
+    {
+        nbase_keyword* kw;
+        
+        if(*g_state.nextchar == '.')
+            pVariableName = false;
+        
+        nbase_parse_identifier(pVariableName);
+        
+        /* Search keyword. */
+        kw = nbase_search_keyword(g_state.token);
+        if(kw)
+        {
+            if(kw->func)
+            {
+                kw->func();
+                return g_state.next_tok;
+            }
+            else
+            {
+                if(pInterpret)
+                    nbase_error(nbase_error_type_UNKNOWN_KEYWORD, THIS_FILE, __FUNCTION__, __LINE__, ": %s", start);
+                return kw->token;
+            }
+        }
+        else
+        {
+            if(pInterpret)
+                nbase_error(nbase_error_type_EXPECTED_KEYWORD, THIS_FILE, __FUNCTION__, __LINE__, " at: ... %s", start);
+        }
+
+        /* Not a keyword... */
+        return nbase_token_IDENTIFIER;
+    }
+
+    nbase_error(nbase_error_type_UNRECOGNIZED_LEXER_TOKEN, THIS_FILE, __FUNCTION__, __LINE__, " at: ... %s", start);
+    return nbase_token_LEXER_ERROR;
 }
+
+/* ******************************************************************************** */
 
 void nbase_reset_state()
 {
