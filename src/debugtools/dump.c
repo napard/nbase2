@@ -51,7 +51,6 @@ void nbase_keyword_DUMP()
     }
 
     nbase_tokenize_keyword(nbase_token_DUMP);
-
     /* Parse ending colon character if there is any. */
     nbase_parse_colon();
 }

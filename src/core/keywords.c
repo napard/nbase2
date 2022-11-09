@@ -26,7 +26,6 @@ void nbase_keyword_END()
     }
 
     nbase_tokenize_keyword(nbase_token_END);
-    
     /* Parse ending colon character if there is any. */
     nbase_parse_colon();
 }
@@ -69,6 +68,24 @@ cont2:
 
     nbase_tokenize_keyword(nbase_token_EOL);
     g_state.state_flags &= ~nbase_state_flag_TOKENIZING;
+}
+
+/* ******************************************************************************** */
+
+/* GC */
+void nbase_keyword_GC()
+{
+    if(!NBASE_TOKENIZING)
+    {
+        nbase_gc();
+        /* Parse ending colon character if there is any. */
+        nbase_parse_colon();
+        return;
+    }
+
+    nbase_tokenize_keyword(nbase_token_GC);
+    /* Parse ending colon character if there is any. */
+    nbase_parse_colon();
 }
 
 #endif /* KEYWORDS_IMPLEMENTATION */

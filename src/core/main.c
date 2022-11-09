@@ -158,6 +158,18 @@ In data area:
     if( !( cond )) { \
         nbase_internal_error(err_msg __VA_OPT__(,) __VA_ARGS__); }
 
+#define NBASE_ASSERT_OPERAND_TO_UNARY(type, types_comp, oper, func, line, expected) \
+    if(!( types_comp )) { \
+        nbase_error(nbase_error_type_INVALID_OPERANDS_UNARY, THIS_FILE, func, line, " %s, expected: %s, got: %s", \
+        nbase_get_oper_name(oper), expected, g_nbase_type_names[type]); \
+    }
+
+#define NBASE_ASSERT_OPERAND_TO_BINARY(node1, node2, types_comp, oper, func, line, expected) \
+    if((node1 ->data_type != node2 ->data_type) || !( types_comp )) { \
+        nbase_error(nbase_error_type_INVALID_OPERANDS_BINARY, THIS_FILE, func, line, " %s, expected both: %s, got: %s and %s", \
+        nbase_get_oper_name(oper), expected, g_nbase_type_names[node1 ->data_type], g_nbase_type_names[node2 ->data_type]); \
+    }
+
 #define NBASE_AST_NODE(x)               ((nbase_ast_node*)x)
 
 #define NBASE_DECLARE_OBJECT(struct_name) \
@@ -201,6 +213,7 @@ typedef enum _nbase_token
     nbase_token_NEQUALS, nbase_token_AND, nbase_token_OR, nbase_token_XOR,
     nbase_token_NOT, nbase_token_GC, nbase_token_END, /*nbase_token_CLEAR,*/
     nbase_token_LIST, /*nbase_token_GOTO,*/ nbase_token_LOADLINE, nbase_token_RUN,
+    nbase_token_PRINT_ALONE,
 #ifdef NBASE_INCLUDE_FEATURE_DEBUGTOOLS
     nbase_token_LVAR, nbase_token_STAT, nbase_token_DUMP,
 #endif /* NBASE_INCLUDE_FEATURE_DEBUGTOOLS */
@@ -347,15 +360,6 @@ typedef enum _nbase_error_type
     nbase_error_type_DOM_ERROR_2, nbase_error_type_unknown_TOKEN
 } nbase_error_type;
 
-/*! Variable structure. */
-typedef struct _nbase_variable
-{
-    NBASE_INTEGER data_offset;
-    NBASE_DIMENSION dims[NBASE_MAX_ARRAY_DIMENSION];
-    char name[NBASE_MAX_VAR_NAME_LEN + 1];
-    nbase_datatype type;
-} nbase_variable;
-
 /* -------------------------------------------------------------------------------- */
 /* Prototypes. */
 
@@ -373,10 +377,18 @@ NBASE_OBJECT*       nbase_alloc_ast_node(nbase_ast_type pType, nbase_datatype pD
                         NBASE_OBJECT* pLhs, NBASE_OBJECT* pRhs,
                         uint16_t pOper, void* pExtra);
 void                nbase_destroy_ast_node(NBASE_OBJECT* pNode);
+void                nbase_print_ast_node(nbase_ast_node* pNode, const char* pNodeMsg);
 void                nbase_error(nbase_error_type pErrType, const char* pSrcFile, const char* pSrcFunc,
                         uint32_t pSrcLine, const char* pMsg, ...);
 void                nbase_internal_error(const char *pMsg,
                         const char* pSrcFile, const char* pSrcFunc, uint32_t pSrcLine, ...);
+NBASE_BOOL          nbase_is_integer_expr(nbase_ast_node* pNode, int pSign);
+void                nbase_assert_term_present(NBASE_OBJECT* pNode);
+NBASE_OBJECT*       nbase_parse_factor(NBASE_BOOL* pForceNotNull);
+NBASE_OBJECT*       nbase_parse_term(NBASE_BOOL* pForceNotNull);
+NBASE_OBJECT*       nbase_parse_sum(NBASE_BOOL* pForceNotNull);
+NBASE_OBJECT*       nbase_parse_logic_op(NBASE_BOOL* pForceNotNull);
+NBASE_OBJECT*       nbase_parse_expression(NBASE_BOOL* pForceNotNull);
 void                nbase_rtrim(char* pStr);
 void                nbase_skip_spaces();
 nbase_keyword*      nbase_search_keyword(const char* pToken);
@@ -386,6 +398,7 @@ nbase_token         nbase_parse_number();
 NBASE_BOOL          nbase_parse_identifier(NBASE_BOOL pVariableName);
 int32_t             nbase_parse_single_char_token(char pTest, bool pUpdateParent);
 int32_t             nbase_get_next_token(NBASE_BOOL pInterpret, NBASE_BOOL pVariableName);
+uint32_t            nbase_get_size_of_type(nbase_datatype pType);
 void                nbase_reset_state();
 
 #define KEYWORDS_DEFINITIONS
@@ -394,6 +407,14 @@ void                nbase_reset_state();
 #include "token.c"
 #define RUN_DEFINITIONS
 #include "run.c"
+#define PRINT_DEFINITIONS
+#include "print.c"
+#define EVAL_DEFINITIONS
+#include "eval.c"
+#define VARS_DEFINITIONS
+#include "vars.c"
+#define OPER_DEFINITIONS
+#include "oper.c"
 
 #ifdef NBASE_INCLUDE_FEATURE_DEBUGTOOLS
 #define DEBUGTOOLS_LVAR_DEFINITIONS
@@ -423,6 +444,14 @@ char g_temp_buff[NBASE_MAX_LINE_LEN_PLUS_1];
 #include "token.c"
 #define RUN_IMPLEMENTATION
 #include "run.c"
+#define PRINT_IMPLEMENTATION
+#include "print.c"
+#define EVAL_IMPLEMENTATION
+#include "eval.c"
+#define VARS_IMPLEMENTATION
+#include "vars.c"
+#define OPER_IMPLEMENTATION
+#include "oper.c"
 
 #ifdef NBASE_INCLUDE_FEATURE_DEBUGTOOLS
 #define DEBUGTOOLS_LVAR_IMPLEMENTATION
@@ -449,7 +478,7 @@ char *g_nbase_type_names[] =
 /*! Keyword table. */
 nbase_keyword g_nbase_keywords[] =
 {
-    {"PRINT",           /*nbase_keyword_PRINT*/NULL,    nbase_token_PRINT},
+    {"PRINT",           nbase_keyword_PRINT,    nbase_token_PRINT},
     {"REM",             /*nbase_keyword_REM*/NULL,      nbase_token_REM},
     {"DIM",             /*nbase_keyword_DIM*/NULL,      nbase_token_DIM},
     {"LET",             /*nbase_keyword_LET*/NULL,      nbase_token_LET},
@@ -466,7 +495,7 @@ nbase_keyword g_nbase_keywords[] =
     {"OR",              NULL,                   nbase_token_OR},
     {"XOR",             NULL,                   nbase_token_XOR},
     {"NOT",             NULL,                   nbase_token_NOT},
-    {"GC",              /*nbase_keyword_GC*/NULL,       nbase_token_GC},
+    {"GC",              nbase_keyword_GC,       nbase_token_GC},
     {"END",             nbase_keyword_END,      nbase_token_END},
     /*{"CLEAR",           nbase_keyword_CLEAR,    nbase_token_CLEAR},*/
     {"LIST",            /*nbase_keyword_LIST*/NULL,     nbase_token_LIST},
@@ -809,6 +838,104 @@ void nbase_destroy_ast_node(NBASE_OBJECT* pNode)
 
 /* ******************************************************************************** */
 
+static int32_t g_tab_level1 = 0;
+
+/*!
+ *  Prints an AST node for debugging purposes.
+ */
+void nbase_print_ast_node(nbase_ast_node* pNode, const char* pNodeMsg)
+{
+    int32_t i;
+    for(i = 0; i < g_tab_level1; i++)
+        NBASE_PRINT("  ");
+
+    if(pNodeMsg)
+        NBASE_PRINTF("%s ", pNodeMsg);
+
+    if(!pNode)
+        return;
+    
+    switch(pNode->ast_type)
+    {
+    case nbase_ast_type_FACTOR:
+        NBASE_PRINT("FACTOR: data_type= ");
+        switch(pNode->data_type)
+        {
+        case nbase_datatype_FLOAT:
+            if(!pNode->extra)
+            {
+                NBASE_PRINTF("float, value=%f\n", pNode->u.flt_val);
+            }
+            else
+            {
+                NBASE_PRINTF("float, variable...\n");
+            }
+            break;
+
+        case nbase_datatype_INTEGER:
+            if(!pNode->extra)
+            {
+                NBASE_PRINTF("integer, value=%d\n", pNode->u.int_val);
+            }
+            else
+            {
+                NBASE_PRINT("integer, variable...\n");
+            }
+            break;
+
+        case nbase_datatype_STRING:
+            if(!pNode->extra)
+            {
+                NBASE_PRINTF("string, value=%s\n", pNode->u.str_val);
+            }
+            else
+            {
+                NBASE_PRINT("string, variable...\n");
+            }
+            break;
+        
+        default:
+            NBASE_ASSERT_OR_INTERNAL_ERROR(0,
+                "UNKNOWN DATA TYPE FOR AST NODE", THIS_FILE, __FUNCTION__, __LINE__);
+        }
+        break;
+    
+    case nbase_ast_type_BINARY:
+        NBASE_PRINTF("BINARY: oper= %s \n", nbase_get_oper_name(pNode->u.op.oper));
+        g_tab_level1++;
+        if(pNode->u.op.lhs)
+            nbase_print_ast_node((nbase_ast_node*)pNode->u.op.lhs, "LHS");
+        if(pNode->u.op.rhs)
+            nbase_print_ast_node((nbase_ast_node*)pNode->u.op.rhs, "RHS");
+        g_tab_level1--;
+        break;
+
+    case nbase_ast_type_UNARY:
+        NBASE_PRINTF("UNARY: oper= %s \n", nbase_get_oper_name(pNode->u.op.oper));
+        g_tab_level1++;
+        nbase_print_ast_node((nbase_ast_node*)pNode->u.op.lhs, "LHS");
+        g_tab_level1--;
+        break;
+    
+    case nbase_ast_type_VARIABLE:
+    {
+        nbase_variable* var = pNode->extra;
+        uint32_t i;
+        NBASE_PRINTF("VARIABLE: name=%s data_type= %s data_offset=%d dims=", var->name, g_nbase_type_names[var->type], var->data_offset);
+        for(i = 0; i < NBASE_MAX_ARRAY_DIMENSION; i++)
+            NBASE_PRINTF("%d ", var->dims[i]);
+        NBASE_PRINT("\n");
+    }
+        break;
+    
+    default:
+        NBASE_ASSERT_OR_INTERNAL_ERROR(0,
+            "UNKNOWN AST NODE", THIS_FILE, __FUNCTION__, __LINE__);
+    }
+}
+
+/* ******************************************************************************** */
+
 void nbase_error(nbase_error_type pErrType, const char* pSrcFile, const char* pSrcFunc,
     uint32_t pSrcLine, const char* pMsg, ...)
 {
@@ -851,6 +978,386 @@ void nbase_internal_error(const char *pMsg,
 
     va_end(vargs);
     exit(-1);
+}
+
+/* ******************************************************************************** */
+
+/*!
+ * Indicates if node is an integer expression.
+ */
+NBASE_BOOL nbase_is_integer_expr(nbase_ast_node* pNode, int pSign)
+{
+    if(!pNode)
+        return false;
+    if (pNode->ast_type != nbase_ast_type_FACTOR)
+        return false;
+    else
+    {
+        if(pSign > 0)
+            NBASE_ASSERT_OR_ERROR(pNode->u.int_val > 0,
+                nbase_error_type_EXPECTED_POSITIVE_VAL, THIS_FILE, __FUNCTION__, __LINE__, "");
+        if(pSign < 0)
+            NBASE_ASSERT_OR_ERROR(pNode->u.int_val < 0,
+                nbase_error_type_EXPECTED_NEGATIVE_VAL, THIS_FILE, __FUNCTION__, __LINE__, "");
+        if(pSign == 0)
+            NBASE_ASSERT_OR_ERROR(pNode->u.int_val == 0,
+                nbase_error_type_EXPECTED_ZERO_VAL, THIS_FILE, __FUNCTION__, __LINE__, "");
+    }
+    if (pNode->data_type != nbase_datatype_INTEGER)
+        return false;
+    /*if (pNode->extra)
+        return false;*/
+
+    return true;
+}
+
+/* ******************************************************************************** */
+
+/*!
+ * Used to check if a following expression is present.
+ */
+void nbase_assert_term_present(NBASE_OBJECT* pNode)
+{
+    NBASE_ASSERT_OR_ERROR(pNode,
+        nbase_error_type_EXPECTED_EXPRESSION, THIS_FILE, __FUNCTION__, __LINE__, "");
+}
+
+/* ******************************************************************************** */
+
+/*!
+ * Parse a factor.
+ */
+NBASE_OBJECT* nbase_parse_factor(NBASE_BOOL* pForceNotNull)
+{
+    nbase_variable var;
+    NBASE_OBJECT* node = NULL;
+
+    nbase_skip_spaces();
+    
+    /* Is factor a number? */
+    if (isdigit(*g_state.nextchar))
+    {
+        g_state.next_tok = nbase_get_next_token(false, false);
+        if (g_state.next_tok != nbase_token_LEXER_ERROR)
+        {
+            if(g_state.next_tok == nbase_token_FLOAT_LITERAL)
+                node = nbase_alloc_ast_node(nbase_ast_type_FACTOR, nbase_datatype_FLOAT,
+                    NULL, 0, g_state.fltval, NULL, NULL, 0, NULL);
+            else if(g_state.next_tok == nbase_token_INTEGER_LITERAL)
+                node = nbase_alloc_ast_node(nbase_ast_type_FACTOR, nbase_datatype_INTEGER,
+                    NULL, g_state.int32val, 0, NULL, NULL, 0, NULL);
+        }
+        else
+            nbase_error(nbase_error_type_NUMBER_ERROR, THIS_FILE, __FUNCTION__, __LINE__, "");
+    }
+    /* Read a '(' ? */
+    else if (*g_state.nextchar == nbase_token_LEFTPAREN)
+    {
+        g_state.paren_level++;
+        g_state.nextchar++;
+        *pForceNotNull = true;
+        node = nbase_parse_expression(pForceNotNull);
+        NBASE_ASSERT_OR_ERROR(g_state.next_tok == nbase_token_RIGHTPAREN,
+            nbase_error_type_PARENTHESES_MISMATCH, THIS_FILE, __FUNCTION__, __LINE__, "");
+    }
+    /* Is factor a string literal? */
+    else if (*g_state.nextchar == '"')
+    {
+        g_state.next_tok = nbase_get_next_token(false, false);
+    
+        node = nbase_alloc_ast_node(nbase_ast_type_FACTOR, nbase_datatype_STRING,
+            g_state.token + 1, 0, 0, NULL, NULL, 0, NULL);
+    }
+    /* Variable? */
+    else if (isalpha(*g_state.nextchar))
+    {
+        nbase_parse_identifier(true);
+        nbase_search_variable(g_state.token, &var);
+        if(var.type != nbase_datatype_NONE)
+        {
+            /* Check for array dimension. */
+            nbase_skip_spaces();
+            if(*g_state.nextchar == nbase_token_LEFTPAREN)
+            {
+                uint32_t dimi = 0;
+                NBASE_DIMENSION dims[NBASE_MAX_ARRAY_DIMENSION] = {0};
+                NBASE_BOOL force_not_null;
+                
+                g_state.next_tok = nbase_get_next_token(false, false);
+                g_state.paren_level++;
+
+                force_not_null = true;
+                do
+                {
+                    nbase_ast_node* node = (nbase_ast_node*)nbase_parse_expression(&force_not_null);
+                    node = (nbase_ast_node*)nbase_eval_expression((NBASE_OBJECT*)node);
+                    NBASE_ASSERT_OR_ERROR(nbase_is_integer_expr(node, 1),
+                        nbase_error_type_DIM_NOT_INT, THIS_FILE, __FUNCTION__, __LINE__, "");
+
+                    dims[dimi++] = (int)node->u.int_val;
+                    if(dimi >= NBASE_MAX_ARRAY_DIMENSION)
+                        break;
+                } while(g_state.next_tok == nbase_token_COMMA);
+
+                NBASE_ASSERT_OR_ERROR(g_state.next_tok == nbase_token_RIGHTPAREN,
+                    nbase_error_type_PARENTHESES_MISMATCH, THIS_FILE, __FUNCTION__, __LINE__, "");
+            
+                memcpy(var.dims, dims, NBASE_MAX_ARRAY_DIMENSION * sizeof(NBASE_DIMENSION));
+            }
+
+            node = nbase_alloc_ast_node(nbase_ast_type_VARIABLE, var.type,
+                NULL, 0, 0, NULL, NULL, 0, &var);
+        }
+        else
+            nbase_error(nbase_error_type_UNKNOWN_SYMBOL,
+                THIS_FILE, __FUNCTION__, __LINE__, ": %s", g_state.token);
+    }
+    else
+    {
+        /* TODO(Pablo): check this for regression. */
+        /* Added to forbid two consecutive operators..., recheck cases!!! maybe unnecessary!!! */
+        if(*g_state.nextchar && !isspace(*g_state.nextchar))
+            *pForceNotNull = true;
+        
+        if(*pForceNotNull)
+            nbase_error(nbase_error_type_UNRECOGNIZED_PARSER_TOKEN, THIS_FILE, __FUNCTION__, __LINE__,
+                " at: ... %s", g_state.nextchar);
+        
+        /* End of line reached. */
+        if(*g_state.nextchar == '\n' || *g_state.nextchar == '\0')
+            return NULL;
+    }
+
+    g_state.next_tok = nbase_get_next_token(false, false);
+
+    return node;
+}
+
+/* ******************************************************************************** */
+
+/*!
+ * Parse a term.
+ */
+NBASE_OBJECT* nbase_parse_term(NBASE_BOOL* pForceNotNull)
+{
+    nbase_token unary = nbase_token_NONE;
+    NBASE_OBJECT* node = NULL, *node2 = NULL;
+    uint16_t oper;
+    
+    /* Take into account unary operators (%, NOT, etc.), necessarily skip spaces. */
+    nbase_skip_spaces();
+    if(*g_state.nextchar == nbase_token_NEGATED ||       /* %   */
+        !strncmp(g_state.nextchar, "NOT", 3)             /* NOT */
+    )  
+    {
+        g_state.next_tok = unary = nbase_get_next_token(false, false);
+        /* If unary operator found, ensure an expression is present. */
+        *pForceNotNull = true;
+    }
+    else {
+        node = nbase_parse_factor(pForceNotNull);
+        if(*pForceNotNull)
+            nbase_assert_term_present(node);
+    }
+
+    /* Loop while a valid operation inside a term is found... */
+    while (g_state.next_tok == nbase_token_MUL ||       /* MUL */
+        g_state.next_tok == nbase_token_DIV ||          /* DIV */
+        g_state.next_tok == nbase_token_MOD ||          /* MOD */
+        g_state.next_tok == nbase_token_NEGATED ||      /* %   */
+        g_state.next_tok == nbase_token_POW ||          /* ^   */
+        g_state.next_tok == nbase_token_NOT             /* NOT */
+    )
+    {
+        *pForceNotNull = true;
+        oper = g_state.next_tok;
+        node2 = nbase_parse_factor(pForceNotNull);
+        if(*pForceNotNull)
+            nbase_assert_term_present(node2);
+
+        /* Check for compatible types in unary operation. */
+        if(unary != nbase_token_NONE)
+        {
+            switch(unary)
+            {
+            case nbase_token_NOT:
+            case nbase_token_NEGATED:
+                NBASE_ASSERT_OPERAND_TO_UNARY(NBASE_AST_NODE(node2)->data_type,
+                    NBASE_AST_NODE(node2)->data_type == nbase_datatype_INTEGER ||
+                    NBASE_AST_NODE(node2)->data_type == nbase_datatype_FLOAT,
+                    unary, __FUNCTION__, __LINE__, "INTEGER or FLOAT");
+                break;
+
+            /*case nbase_token_NOT:
+                NBASE_ASSERT_OPERAND_TO_UNARY(NBASE_AST_NODE(node2)->data_type,
+                    NBASE_AST_NODE(node2)->data_type == nbase_datatype_INTEGER_,
+                    unary, __LINE__, "INTEGER");
+                break;*/
+            
+            default:
+                NBASE_ASSERT_OR_INTERNAL_ERROR(0,
+                    "UNKNOWN UNARY OPERATOR", THIS_FILE, __FUNCTION__, __LINE__);
+            }
+        }
+
+        /* Check types of lhs & rhs for the binary operation. */
+        if(oper == nbase_token_MOD)
+        {
+            NBASE_ASSERT_OPERAND_TO_BINARY(NBASE_AST_NODE(node), NBASE_AST_NODE(node2),
+                NBASE_AST_NODE(node)->data_type == nbase_datatype_INTEGER,
+                oper, __FUNCTION__, __LINE__, "INTEGER");
+        }
+        if(oper == nbase_token_MUL || oper == nbase_token_DIV || oper == nbase_token_POW)
+        {
+            NBASE_ASSERT_OPERAND_TO_BINARY(NBASE_AST_NODE(node), NBASE_AST_NODE(node2),
+                NBASE_AST_NODE(node)->data_type == nbase_datatype_INTEGER ||
+                NBASE_AST_NODE(node)->data_type == nbase_datatype_FLOAT,
+                oper, __FUNCTION__, __LINE__, "INTEGER or FLOAT");
+        }
+    
+        if(unary == nbase_token_NONE)
+        {
+            node = nbase_alloc_ast_node(nbase_ast_type_BINARY,
+                NBASE_AST_NODE(node)->data_type, NULL, 0, 0.0f, node, node2, oper, NULL);
+        }
+        else
+        {
+            node = nbase_alloc_ast_node(nbase_ast_type_UNARY,
+                NBASE_AST_NODE(node2)->data_type, NULL, 0, 0.0f, node2, NULL, unary, NULL);
+            unary = nbase_token_NONE;
+        }
+    }
+    
+    return node;
+}
+
+/* ******************************************************************************** */
+
+/*!
+ * Parse a sum.
+ */
+NBASE_OBJECT* nbase_parse_sum(NBASE_BOOL* pForceNotNull)
+{
+    NBASE_OBJECT* node = NULL, *node2 = NULL;
+    uint16_t oper;
+    
+    node = nbase_parse_term(pForceNotNull);
+    if(*pForceNotNull)
+        nbase_assert_term_present(node);
+
+    /* Loop while a valid operation inside a sum is found... */
+    while (g_state.next_tok == nbase_token_PLUS ||      /* +      */
+        g_state.next_tok == nbase_token_MINUS ||        /* -      */
+        g_state.next_tok == nbase_token_LSHIFT ||       /* LSHIFT */
+        g_state.next_tok == nbase_token_RSHIFT          /* RSHIFT */
+    )
+    {
+        *pForceNotNull = true;
+        oper = g_state.next_tok;
+        node2 = nbase_parse_term(pForceNotNull);
+        if(*pForceNotNull)
+            nbase_assert_term_present(node2);
+
+        /* Check types of lhs & rhs for the binary operation. */
+        if(oper == nbase_token_PLUS || oper == nbase_token_MINUS)
+        {
+            NBASE_ASSERT_OPERAND_TO_BINARY(NBASE_AST_NODE(node), NBASE_AST_NODE(node2),
+                NBASE_AST_NODE(node)->data_type == nbase_datatype_INTEGER ||
+                NBASE_AST_NODE(node)->data_type == nbase_datatype_FLOAT,
+                oper, __FUNCTION__, __LINE__, "INTEGER or FLOAT");
+        }
+        if(oper == nbase_token_LSHIFT || oper == nbase_token_RSHIFT)
+        {
+            NBASE_ASSERT_OPERAND_TO_BINARY(NBASE_AST_NODE(node), NBASE_AST_NODE(node2),
+                NBASE_AST_NODE(node)->data_type == nbase_datatype_INTEGER,
+                oper, __FUNCTION__, __LINE__, "INTEGER");
+        }
+    
+        node = nbase_alloc_ast_node(nbase_ast_type_BINARY,
+            NBASE_AST_NODE(node)->data_type, NULL, 0, 0.0f, node, node2, oper, NULL);
+    }
+    
+    return node;
+}
+
+/* ******************************************************************************** */
+
+/*!
+ * Parse a logic operation.
+ */
+NBASE_OBJECT* nbase_parse_logic_op(NBASE_BOOL* pForceNotNull)
+{
+    NBASE_OBJECT* node = NULL, *node2 = NULL;
+    uint16_t oper;
+    
+    node = nbase_parse_sum(pForceNotNull);
+    if(*pForceNotNull)
+        nbase_assert_term_present(node);
+
+    /* Loop while a valid operation inside a logic op is found... */
+    while (g_state.next_tok == nbase_token_AND ||       /* AND */
+        g_state.next_tok == nbase_token_OR ||           /* OR  */
+        g_state.next_tok == nbase_token_XOR             /* XOR */
+    )
+    {
+        *pForceNotNull = true;
+        oper = g_state.next_tok;
+        node2 = nbase_parse_sum(pForceNotNull);
+        if(*pForceNotNull)
+            nbase_assert_term_present(node2);
+
+        /* Check types of lhs & rhs for the binary operation. */
+        NBASE_ASSERT_OPERAND_TO_BINARY(NBASE_AST_NODE(node), NBASE_AST_NODE(node2),
+            NBASE_AST_NODE(node)->data_type == nbase_datatype_INTEGER,
+            oper, __FUNCTION__, __LINE__, "INTEGER");
+    
+        node = nbase_alloc_ast_node(nbase_ast_type_BINARY,
+            NBASE_AST_NODE(node)->data_type, NULL, 0, 0.0f, node, node2, oper, NULL);
+    }
+    
+    return node;
+}
+
+/* ******************************************************************************** */
+
+/*!
+ * Parse a toplevel expression.
+ */
+NBASE_OBJECT* nbase_parse_expression(NBASE_BOOL* pForceNotNull)
+{
+    NBASE_OBJECT* node = NULL, *node2 = NULL;
+    uint16_t oper;
+    
+    node = nbase_parse_logic_op(pForceNotNull);
+    if(*pForceNotNull)
+        nbase_assert_term_present(node);
+
+    /* Loop while a valid operation inside an expression is found... */
+    while (g_state.next_tok == nbase_token_LESS ||      /* <  */
+        g_state.next_tok == nbase_token_LESSEQ ||       /* <= */
+        g_state.next_tok == nbase_token_GREATER ||      /* >  */
+        g_state.next_tok == nbase_token_GREATEREQ ||    /* >= */
+        g_state.next_tok == nbase_token_EQ ||           /* =  */
+        g_state.next_tok == nbase_token_NEQUALS         /* <> */
+    )
+    {
+        *pForceNotNull = true;
+        oper = g_state.next_tok;
+        node2 = nbase_parse_logic_op(pForceNotNull);
+        if(*pForceNotNull)
+            nbase_assert_term_present(node2);
+
+        /* Check types of lhs & rhs for the binary operation. */
+        NBASE_ASSERT_OPERAND_TO_BINARY(NBASE_AST_NODE(node), NBASE_AST_NODE(node2),
+            NBASE_AST_NODE(node)->data_type == nbase_datatype_INTEGER ||
+            NBASE_AST_NODE(node)->data_type == nbase_datatype_FLOAT,
+            oper, __FUNCTION__, __LINE__, "INTEGER or FLOAT");
+    
+        node = nbase_alloc_ast_node(nbase_ast_type_BINARY,
+            NBASE_AST_NODE(node)->data_type, NULL, 0, 0.0f, node, node2, oper, NULL);
+    }
+    
+    return node;
 }
 
 /* ******************************************************************************** */
@@ -1379,6 +1886,32 @@ int32_t nbase_get_next_token(NBASE_BOOL pInterpret, NBASE_BOOL pVariableName)
 
     nbase_error(nbase_error_type_UNRECOGNIZED_LEXER_TOKEN, THIS_FILE, __FUNCTION__, __LINE__, " at: ... %s", start);
     return nbase_token_LEXER_ERROR;
+}
+
+/* ******************************************************************************** */
+
+uint32_t nbase_get_size_of_type(nbase_datatype pType)
+{
+    switch(pType)
+    {
+    case nbase_datatype_FLOAT:
+        return sizeof(NBASE_FLOAT);
+        break;
+        
+    case nbase_datatype_INTEGER:
+        return sizeof(NBASE_INTEGER);
+        break;
+
+    case nbase_datatype_STRING:
+        return sizeof(void*);
+        break;
+        
+    default:
+        NBASE_ASSERT_OR_INTERNAL_ERROR(0,
+            "get_size_of_type(): UNKNOWN TYPE", THIS_FILE, __FUNCTION__, __LINE__);
+    }
+
+    return 0;
 }
 
 /* ******************************************************************************** */
