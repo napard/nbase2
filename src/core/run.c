@@ -49,6 +49,34 @@ next:
             NBASE_PRINT("\n");
             pcode++;
         }
+        else
+        {
+            nbase_eval_node node, node_out;
+            uint8_t* cp = (uint8_t*)(pcode + 1);
+            switch(*cp++)
+            {
+            case '&':
+                node.data_type = nbase_datatype_FLOAT;
+                node.v.flt_val = *((NBASE_FLOAT*)cp);
+                cp += sizeof(NBASE_FLOAT);
+                break;
+            case '!':
+                node.data_type = nbase_datatype_INTEGER;
+                node.v.flt_val = *((NBASE_INTEGER*)cp);
+                cp += sizeof(NBASE_INTEGER);
+                break;
+            case '$':
+                node.data_type = nbase_datatype_STRING;
+                node.v.str_val = cp;
+                break;
+            
+            default:
+                NBASE_ASSERT_OR_INTERNAL_ERROR(0,
+                    "nbase_keyword_RUN(): UNKNOWN DATA TYPE", RUN_FILE, __FUNCTION__, __LINE__);
+            }
+
+            nbase_eval_expression(&node, NULL, 0, cp, &node_out);
+        }
         break;
     
     case 0:

@@ -1934,7 +1934,7 @@ uint32_t nbase_get_size_of_type(nbase_datatype pType)
         
     default:
         NBASE_ASSERT_OR_INTERNAL_ERROR(0,
-            "get_size_of_type(): UNKNOWN TYPE", THIS_FILE, __FUNCTION__, __LINE__);
+            "nbase_get_size_of_type(): UNKNOWN TYPE", THIS_FILE, __FUNCTION__, __LINE__);
     }
 
     return 0;

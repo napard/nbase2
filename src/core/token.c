@@ -80,7 +80,7 @@ const char* nbase_token_code_to_name(nbase_token pCode)
     case nbase_token_DUMP:              return "DUMP";
 #endif /* NBASE_INCLUDE_FEATURE_DEBUGTOOLS */
 
-    default:                           return "<UNKNOWN TOKEN>";
+    default:                            return "<UNKNOWN TOKEN>";
     }
 }
 
@@ -195,6 +195,8 @@ void nbase_tokenize_var(nbase_datatype pType, const char* pName)
         break;
     
     default:
+        NBASE_ASSERT_OR_INTERNAL_ERROR(0,
+            "nbase_tokenize_var(): UNKNOWN DATA TYPE", TOKEN_FILE, __FUNCTION__, __LINE__);
         break;
     }
 
