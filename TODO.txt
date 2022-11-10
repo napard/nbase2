@@ -1,0 +1,4 @@
+* Rewrite expression evaluator for RUN tokenized code.
+* Recheck ALL PRINT tests, interpreted and compiled.
+* Recheck all variable references, interpreted and compiled.
+* Reimplement LIST for tokenized code.

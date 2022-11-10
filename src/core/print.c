@@ -22,6 +22,15 @@ void nbase_keyword_PRINT()
     nbase_ast_node* node = NULL;
     NBASE_BOOL nl = true;
 
+    /* If not tokenizing, clear code area to evaluate this line now. */
+    if(!NBASE_TOKENIZING)
+    {
+        memset(NBASE_CODE_AREA_BASE, 0, NBASE_MAX_RAM_SIZE - NBASE_MAX_VARS_AREA_SIZE - NBASE_MAX_DATA_AREA_SIZE);
+        g_state.code_limit = NBASE_CODE_AREA_BASE;
+    }
+    
+    nbase_tokenize_keyword(nbase_token_PRINT);
+
     NBASE_BOOL force_not_null = false;
     node = (nbase_ast_node*)nbase_parse_expression(&force_not_null);
 
@@ -34,8 +43,22 @@ void nbase_keyword_PRINT()
     if(!node)
     {
         /* PRINT without args... */
-        NBASE_PRINT("\n");
+        nbase_tokenize_keyword(nbase_token_NL);
         nl = false;
+    
+        if (g_state.next_tok == nbase_token_COLON)
+        {
+            /* If we get a colon, we expect a next command
+                on the same line as this PRINT. */
+            
+            /* If not tokenizing, run this line tokenized code now. */
+            if(!NBASE_TOKENIZING)
+            {
+                nbase_keyword_RUN();
+            }
+            
+            return;
+        }
     }
     else
     {
@@ -43,41 +66,18 @@ void nbase_keyword_PRINT()
         while (node)
         {
             nl = true;
-            
-            node = (nbase_ast_node*)nbase_eval_expression((NBASE_OBJECT*)node);
-            
-            switch(node->ast_type)
-            {
-            case nbase_ast_type_FACTOR:
-                switch(node->data_type)
-                {
-                case nbase_datatype_FLOAT:
-                    NBASE_PRINTF("%.50f", node->u.flt_val);
-                    break;
-                    
-                case nbase_datatype_INTEGER:
-                    NBASE_PRINTF("%d", node->u.int_val);
-                    break;
 
-                case nbase_datatype_STRING:
-                    NBASE_PRINTF("%s", node->u.str_val);
-                    break;
-
-                default:
-                    NBASE_ASSERT_OR_INTERNAL_ERROR(0,
-                        "UNKNOWN DATA TYPE FOR AST NODE", PRINT_FILE, __FUNCTION__, __LINE__);
-                }
-                break;
-                
-            default:
-                NBASE_ASSERT_OR_INTERNAL_ERROR(0,
-                    "UNKNOWN NODE TYPE", PRINT_FILE, __FUNCTION__, __LINE__);
-            }            
-            
             if (g_state.next_tok == nbase_token_COLON)
             {
                 /* If we get a colon, we expect a next command
                     on the same line as this PRINT. */
+                
+                /* If not tokenizing, run this line tokenized code now. */
+                if(!NBASE_TOKENIZING)
+                {
+                    nbase_keyword_RUN();
+                }
+                
                 return;
             }
             else if (g_state.next_tok != nbase_token_SEMICOLON)
@@ -88,6 +88,8 @@ void nbase_keyword_PRINT()
                     nbase_error_type_EXPECTED_END_OF_LINE, PRINT_FILE, __FUNCTION__, __LINE__, "");
                 break;
             }
+            else
+                nbase_tokenize_keyword(nbase_token_SEMICOLON);
             
             /* We got a semicolon, if next node parsed is not NULL, print it,
                 if it is NULL, leave the loop and a newline WILL NOT be printed at the end. */
@@ -105,10 +107,17 @@ void nbase_keyword_PRINT()
 
     if (nl)
     {
-        NBASE_PRINT("\n");
+        nbase_tokenize_keyword(nbase_token_NL);
     }
 
     g_state.next_tok = nbase_token_EOL;
+    /*nbase_tokenize_keyword(nbase_token_EOL);*/
+
+    /* If not tokenizing, run this line tokenized code now. */
+    if(!NBASE_TOKENIZING)
+    {
+        nbase_keyword_RUN();
+    }
 }
 
 #endif /* PRINT_IMPLEMENTATION */

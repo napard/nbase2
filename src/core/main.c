@@ -864,7 +864,7 @@ void nbase_print_ast_node(nbase_ast_node* pNode, const char* pNodeMsg)
         case nbase_datatype_FLOAT:
             if(!pNode->extra)
             {
-                NBASE_PRINTF("float, value=%f\n", pNode->u.flt_val);
+                NBASE_PRINTF("float, value=%.50f\n", pNode->u.flt_val);
             }
             else
             {
@@ -1046,6 +1046,8 @@ NBASE_OBJECT* nbase_parse_factor(NBASE_BOOL* pForceNotNull)
             else if(g_state.next_tok == nbase_token_INTEGER_LITERAL)
                 node = nbase_alloc_ast_node(nbase_ast_type_FACTOR, nbase_datatype_INTEGER,
                     NULL, g_state.int32val, 0, NULL, NULL, 0, NULL);
+            
+            nbase_tokenize_factor((nbase_ast_node*)node);
         }
         else
             nbase_error(nbase_error_type_NUMBER_ERROR, THIS_FILE, __FUNCTION__, __LINE__, "");
@@ -1053,12 +1055,16 @@ NBASE_OBJECT* nbase_parse_factor(NBASE_BOOL* pForceNotNull)
     /* Read a '(' ? */
     else if (*g_state.nextchar == nbase_token_LEFTPAREN)
     {
+        nbase_tokenize_keyword(nbase_token_LEFTPAREN);
+        
         g_state.paren_level++;
         g_state.nextchar++;
         *pForceNotNull = true;
         node = nbase_parse_expression(pForceNotNull);
         NBASE_ASSERT_OR_ERROR(g_state.next_tok == nbase_token_RIGHTPAREN,
             nbase_error_type_PARENTHESES_MISMATCH, THIS_FILE, __FUNCTION__, __LINE__, "");
+
+        nbase_tokenize_keyword(nbase_token_RIGHTPAREN);
     }
     /* Is factor a string literal? */
     else if (*g_state.nextchar == '"')
@@ -1067,6 +1073,14 @@ NBASE_OBJECT* nbase_parse_factor(NBASE_BOOL* pForceNotNull)
     
         node = nbase_alloc_ast_node(nbase_ast_type_FACTOR, nbase_datatype_STRING,
             g_state.token + 1, 0, 0, NULL, NULL, 0, NULL);
+
+        nbase_tokenize_factor((nbase_ast_node*)node);
+    }
+    /* Read a ':' ? */
+    else if (*g_state.nextchar == ':')
+    {
+        g_state.next_tok = nbase_get_next_token(false, false);
+        return NULL;
     }
     /* Variable? */
     else if (isalpha(*g_state.nextchar))
@@ -1075,6 +1089,8 @@ NBASE_OBJECT* nbase_parse_factor(NBASE_BOOL* pForceNotNull)
         nbase_search_variable(g_state.token, &var);
         if(var.type != nbase_datatype_NONE)
         {
+            nbase_tokenize_var(var.type, var.name);
+            
             /* Check for array dimension. */
             nbase_skip_spaces();
             if(*g_state.nextchar == nbase_token_LEFTPAREN)
@@ -1083,6 +1099,8 @@ NBASE_OBJECT* nbase_parse_factor(NBASE_BOOL* pForceNotNull)
                 NBASE_DIMENSION dims[NBASE_MAX_ARRAY_DIMENSION] = {0};
                 NBASE_BOOL force_not_null;
                 
+                nbase_tokenize_keyword(nbase_token_LEFTPAREN);
+
                 g_state.next_tok = nbase_get_next_token(false, false);
                 g_state.paren_level++;
 
@@ -1090,18 +1108,24 @@ NBASE_OBJECT* nbase_parse_factor(NBASE_BOOL* pForceNotNull)
                 do
                 {
                     nbase_ast_node* node = (nbase_ast_node*)nbase_parse_expression(&force_not_null);
-                    node = (nbase_ast_node*)nbase_eval_expression((NBASE_OBJECT*)node);
+                    /*node = (nbase_ast_node*)nbase_eval_expression((NBASE_OBJECT*)node);*/
                     NBASE_ASSERT_OR_ERROR(nbase_is_integer_expr(node, 1),
                         nbase_error_type_DIM_NOT_INT, THIS_FILE, __FUNCTION__, __LINE__, "");
 
                     dims[dimi++] = (int)node->u.int_val;
                     if(dimi >= NBASE_MAX_ARRAY_DIMENSION)
                         break;
+                
+                    if(g_state.next_tok == nbase_token_COMMA)
+                        nbase_tokenize_keyword(nbase_token_COMMA);
+                
                 } while(g_state.next_tok == nbase_token_COMMA);
 
                 NBASE_ASSERT_OR_ERROR(g_state.next_tok == nbase_token_RIGHTPAREN,
                     nbase_error_type_PARENTHESES_MISMATCH, THIS_FILE, __FUNCTION__, __LINE__, "");
             
+                nbase_tokenize_keyword(nbase_token_RIGHTPAREN);
+
                 memcpy(var.dims, dims, NBASE_MAX_ARRAY_DIMENSION * sizeof(NBASE_DIMENSION));
             }
 
@@ -1169,6 +1193,8 @@ NBASE_OBJECT* nbase_parse_term(NBASE_BOOL* pForceNotNull)
         g_state.next_tok == nbase_token_NOT             /* NOT */
     )
     {
+        nbase_tokenize_keyword(g_state.next_tok);
+        
         *pForceNotNull = true;
         oper = g_state.next_tok;
         node2 = nbase_parse_factor(pForceNotNull);
@@ -1188,12 +1214,6 @@ NBASE_OBJECT* nbase_parse_term(NBASE_BOOL* pForceNotNull)
                     unary, __FUNCTION__, __LINE__, "INTEGER or FLOAT");
                 break;
 
-            /*case nbase_token_NOT:
-                NBASE_ASSERT_OPERAND_TO_UNARY(NBASE_AST_NODE(node2)->data_type,
-                    NBASE_AST_NODE(node2)->data_type == nbase_datatype_INTEGER_,
-                    unary, __LINE__, "INTEGER");
-                break;*/
-            
             default:
                 NBASE_ASSERT_OR_INTERNAL_ERROR(0,
                     "UNKNOWN UNARY OPERATOR", THIS_FILE, __FUNCTION__, __LINE__);
@@ -1252,6 +1272,8 @@ NBASE_OBJECT* nbase_parse_sum(NBASE_BOOL* pForceNotNull)
         g_state.next_tok == nbase_token_RSHIFT          /* RSHIFT */
     )
     {
+        nbase_tokenize_keyword(g_state.next_tok);
+
         *pForceNotNull = true;
         oper = g_state.next_tok;
         node2 = nbase_parse_term(pForceNotNull);
@@ -1300,6 +1322,8 @@ NBASE_OBJECT* nbase_parse_logic_op(NBASE_BOOL* pForceNotNull)
         g_state.next_tok == nbase_token_XOR             /* XOR */
     )
     {
+        nbase_tokenize_keyword(g_state.next_tok);
+
         *pForceNotNull = true;
         oper = g_state.next_tok;
         node2 = nbase_parse_sum(pForceNotNull);
@@ -1341,6 +1365,8 @@ NBASE_OBJECT* nbase_parse_expression(NBASE_BOOL* pForceNotNull)
         g_state.next_tok == nbase_token_NEQUALS         /* <> */
     )
     {
+        nbase_tokenize_keyword(g_state.next_tok);
+
         *pForceNotNull = true;
         oper = g_state.next_tok;
         node2 = nbase_parse_logic_op(pForceNotNull);

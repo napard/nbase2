@@ -15,9 +15,9 @@
 static const char* RUN_FILE = "run.c";
 
 #ifdef NBASE_INCLUDE_FEATURE_DEBUGTOOLS
-void nbase_keyword_LVAR();
-void nbase_keyword_STAT();
-void nbase_keyword_DUMP();
+void                                    nbase_keyword_LVAR();
+void                                    nbase_keyword_STAT();
+void                                    nbase_keyword_DUMP();
 #endif /* NBASE_INCLUDE_FEATURE_DEBUGTOOLS */    
 
 /* ******************************************************************************** */
@@ -41,6 +41,14 @@ next:
 #endif /* NBASE_INCLUDE_FEATURE_DEBUGTOOLS */    
 
     case nbase_token_EOL:
+        break;
+    
+    case nbase_token_PRINT:
+        if(*(pcode + 1) == nbase_token_NL)
+        {
+            NBASE_PRINT("\n");
+            pcode++;
+        }
         break;
     
     case 0:

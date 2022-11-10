@@ -12,9 +12,10 @@
 /* -------------------------------------------------------------------------------- */
 /* Prototypes. */
 
-const char* nbase_token_code_to_name(nbase_token pCode);
-void nbase_tokenize_keyword             (nbase_token pCode);
-
+const char*                             nbase_token_code_to_name(nbase_token pCode);
+void                                    nbase_tokenize_keyword(nbase_token pCode);
+void                                    nbase_tokenize_factor(nbase_ast_node* pNode);
+void                                    nbase_tokenize_var(nbase_datatype pType, const char* pName);
 #endif /* TOKEN_DEFINITIONS */
 
 /* -------------------------------------------------------------------------------- */
@@ -87,7 +88,7 @@ const char* nbase_token_code_to_name(nbase_token pCode)
 
 void nbase_tokenize_keyword(nbase_token pCode)
 {
-    if(pCode >= nbase_token_PLUS && pCode < nbase_token_LAST)
+    if(pCode >= 33 && pCode < nbase_token_LAST)
     {
         uint16_t* p = (uint16_t*)g_state.code_limit;
 
@@ -102,6 +103,108 @@ void nbase_tokenize_keyword(nbase_token pCode)
 
     NBASE_ASSERT_OR_INTERNAL_ERROR(0,
         "UNKNOWN TOKEN CODE", TOKEN_FILE, __FUNCTION__, __LINE__);
+}
+
+/* ******************************************************************************** */
+
+void nbase_tokenize_factor(nbase_ast_node* pNode)
+{
+    uint8_t* p8 = (uint8_t*)g_state.code_limit;
+    NBASE_INTEGER* pint;
+    NBASE_FLOAT* pflt;
+    
+    switch(pNode->data_type)
+    {
+    case nbase_datatype_FLOAT:
+#ifdef NBASE_DEBUG
+        NBASE_PRINTF("tokenize_factor:  %p = '&'\n", (void*)p8);
+#endif /* NBASE_DEBUG */
+        *p8++ = '&';
+        pflt = (NBASE_FLOAT*)p8;
+#ifdef NBASE_DEBUG
+        NBASE_PRINTF("tokenize_factor:  %p = %.50f\n", (void*)pflt, pNode->u.flt_val);
+#endif /* NBASE_DEBUG */
+        *pflt++ = pNode->u.flt_val;
+        g_state.code_limit = (uint8_t*)pflt;
+        break;
+        
+    case nbase_datatype_INTEGER:
+#ifdef NBASE_DEBUG
+        NBASE_PRINTF("tokenize_factor:  %p = '!'\n", (void*)p8);
+#endif /* NBASE_DEBUG */
+        *p8++ = '!';
+        pint = (NBASE_INTEGER*)p8;
+#ifdef NBASE_DEBUG
+        NBASE_PRINTF("tokenize_factor:  %p = %d\n", (void*)pint, pNode->u.int_val);
+#endif /* NBASE_DEBUG */
+        *pint++ = pNode->u.int_val;
+        g_state.code_limit = (uint8_t*)pint;
+        break;
+
+    case nbase_datatype_STRING:
+#ifdef NBASE_DEBUG
+        NBASE_PRINTF("tokenize_factor:  %p = '$'\n", (void*)p8);
+#endif /* NBASE_DEBUG */
+        *p8++ = '$';
+#ifdef NBASE_DEBUG
+        NBASE_PRINTF("tokenize_factor:  %p = \"%s\" (%lu)\n", (void*)p8, pNode->u.str_val, strlen(pNode->u.str_val) + 1);
+#endif /* NBASE_DEBUG */
+        strcpy((char*)p8, pNode->u.str_val);
+        p8 += strlen(pNode->u.str_val);
+        *p8++ = '\0';
+        g_state.code_limit = p8;
+        break;
+
+    default:
+        NBASE_ASSERT_OR_INTERNAL_ERROR(0,
+            "UNKNOWN DATA TYPE FOR AST NODE", TOKEN_FILE, __FUNCTION__, __LINE__);
+    }
+}
+
+/* ******************************************************************************** */
+
+void nbase_tokenize_var(nbase_datatype pType, const char* pName)
+{
+    uint8_t* p8 = (uint8_t*)g_state.code_limit;
+
+    switch(pType)
+    {
+    case nbase_datatype_FLOAT:
+#ifdef NBASE_DEBUG
+        NBASE_PRINTF("tokenize_var:  %p = '@'\n", (void*)p8);
+        NBASE_PRINTF("tokenize_var:  %p = '&'\n", (void*)p8 + 1);
+#endif /* NBASE_DEBUG */
+        *p8++ = '@';
+        *p8++ = '&';
+        break;
+    case nbase_datatype_INTEGER:
+#ifdef NBASE_DEBUG
+        NBASE_PRINTF("tokenize_var:  %p = '@'\n", (void*)p8);
+        NBASE_PRINTF("tokenize_var:  %p = '!'\n", (void*)p8 + 1);
+#endif /* NBASE_DEBUG */
+        *p8++ = '@';
+        *p8++ = '!';
+        break;
+    case nbase_datatype_STRING:
+#ifdef NBASE_DEBUG
+        NBASE_PRINTF("tokenize_var:  %p = '@'\n", (void*)p8);
+        NBASE_PRINTF("tokenize_var:  %p = '$'\n", (void*)p8 + 1);
+#endif /* NBASE_DEBUG */
+        *p8++ = '@';
+        *p8++ = '$';
+        break;
+    
+    default:
+        break;
+    }
+
+#ifdef NBASE_DEBUG
+        NBASE_PRINTF("tokenize_var:  %p = \"%s\" (%lu)\n", (void*)p8, pName, strlen(pName) + 1);
+#endif /* NBASE_DEBUG */
+        strcpy((char*)p8, pName);
+        p8 += strlen(pName);
+        *p8++ = '\0';
+        g_state.code_limit = p8;
 }
 
 #endif /* TOKEN_IMPLEMENTATION */

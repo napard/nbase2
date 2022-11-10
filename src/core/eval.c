@@ -234,10 +234,13 @@ NBASE_OBJECT* nbase_eval_unary(NBASE_OBJECT* pNode, uint16_t pOper)
     }
 
     return pNode;
+#endif
 }
 
 NBASE_OBJECT* nbase_eval_binary_(NBASE_OBJECT* pLhs, NBASE_OBJECT* pRhs, uint16_t pOper)
 {
+#if 0
+
 #if 0
     if(NBASE_AST_NODE(pLhs)->ast_type == nbase_ast_type_UNARY)
         pLhs = eval_unary(NBASE_AST_NODE(pLhs)->u.op.lhs, NBASE_AST_NODE(pLhs)->u.op.oper);
@@ -447,9 +450,9 @@ NBASE_OBJECT* nbase_eval_binary_(NBASE_OBJECT* pLhs, NBASE_OBJECT* pRhs, uint16_
         NBASE_ASSERT_OR_INTERNAL_ERROR(0,
             "UNKNOWN DATA TYPE!!!", EVAL_FILE, __LINE__);
     }
-#endif
 
     return NULL;
+#endif
 }
 
 NBASE_OBJECT* nbase_eval_binary(NBASE_OBJECT* pLhs, NBASE_OBJECT* pRhs, uint16_t pOper)
@@ -506,9 +509,9 @@ NBASE_OBJECT* nbase_eval_binary(NBASE_OBJECT* pLhs, NBASE_OBJECT* pRhs, uint16_t
         NBASE_ASSERT_OR_INTERNAL_ERROR(0,
             "UNKNOWN BINARY OPERATOR", EVAL_FILE, __LINE__);
     }
-#endif
 
     return NULL;
+#endif
 }
 
 NBASE_OBJECT* nbase_eval_expression(NBASE_OBJECT* pNode)
@@ -614,9 +617,9 @@ NBASE_OBJECT* nbase_eval_expression(NBASE_OBJECT* pNode)
         NBASE_ASSERT_OR_INTERNAL_ERROR(0,
             "UNKNOWN NODE TYPE", EVAL_FILE, __LINE__);
     }
-#endif
     
     return pNode;
+#endif
 }
 
 #endif /* EVAL_IMPLEMENTATION */
