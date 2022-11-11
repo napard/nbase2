@@ -2,3 +2,6 @@
 * Recheck ALL PRINT tests, interpreted and compiled.
 * Recheck all variable references, interpreted and compiled.
 * Reimplement LIST for tokenized code.
+* Eliminate unnecessary defaults in switch constructs.
+* See error 'ERROR[1]: (PARSERR17) EXPECTED END OF LINE' for 'PRINT 1,'
+  there is no space between error message and new prompt.

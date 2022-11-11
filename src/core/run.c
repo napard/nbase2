@@ -40,6 +40,10 @@ next:
     case nbase_token_DUMP:          nbase_keyword_DUMP(); break;
 #endif /* NBASE_INCLUDE_FEATURE_DEBUGTOOLS */    
 
+    case nbase_token_NL:
+        NBASE_PRINT("\n");
+        break;
+    
     case nbase_token_EOL:
         break;
     
@@ -51,31 +55,34 @@ next:
         }
         else
         {
+            /* Build node to evaluate. */
             nbase_eval_node node, node_out;
             uint8_t* cp = (uint8_t*)(pcode + 1);
-            switch(*cp++)
+            nbase_build_node(&cp, &node);
+
+            /* Call expression evaluator. */
+            nbase_eval_expression(&node, &cp, &node_out);
+            switch(node.data_type)
             {
-            case '&':
-                node.data_type = nbase_datatype_FLOAT;
-                node.v.flt_val = *((NBASE_FLOAT*)cp);
-                cp += sizeof(NBASE_FLOAT);
+            case nbase_datatype_FLOAT:
+                NBASE_PRINTF("%.50f", node_out.v.flt_val);
                 break;
-            case '!':
-                node.data_type = nbase_datatype_INTEGER;
-                node.v.flt_val = *((NBASE_INTEGER*)cp);
-                cp += sizeof(NBASE_INTEGER);
+            
+            case nbase_datatype_INTEGER:
+                NBASE_PRINTF("%d", node_out.v.int_val);
                 break;
-            case '$':
-                node.data_type = nbase_datatype_STRING;
-                node.v.str_val = cp;
+            
+            case nbase_datatype_STRING:
+                NBASE_PRINTF("%s", node_out.v.str_val);
                 break;
             
             default:
                 NBASE_ASSERT_OR_INTERNAL_ERROR(0,
-                    "nbase_keyword_RUN(): UNKNOWN DATA TYPE", RUN_FILE, __FUNCTION__, __LINE__);
+                    "nbase_keyword_RUN(): UNKNOWN DATA TYPE FOR node_out", RUN_FILE, __FUNCTION__, __LINE__);
+                break;
             }
-
-            nbase_eval_expression(&node, NULL, 0, cp, &node_out);
+            pcode = (uint16_t*)cp;
+            goto next;
         }
         break;
     

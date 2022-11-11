@@ -58,6 +58,8 @@ In data area:
 /* #define NBASE_DEBUG_MALLOC */
 /* Output garbage collector's debugging info to standard console output. */ 
 #define NBASE_DEBUG_GC
+/* Output tokenizer's debugging info to standard console output. */ 
+/*#define NBASE_DEBUG_TOKENIZER*/
 /* Enable color escape sequences to standard console output. */
 #define NBASE_USE_ESCAPE_ANSI_COLORS
 
@@ -108,7 +110,7 @@ In data area:
 /* Intrinsic interpreter macros. */
 
 #define NBASE_VERSION_MAYOR 1
-#define NBASE_VERSION_MINOR 0
+#define NBASE_VERSION_MINOR 1
 #define NBASE_VERSION_PATCH 0
 
 /*! Max line length. */
@@ -702,6 +704,7 @@ void nbase_prompt()
  *  @param pDataType Type of data carried in the node.
  *  @param pStrVal String value if node is a string.
  *  @param pIntVal Integer number value if node is an integer value.
+ *  @param pFltVal Floating point number value if node is a floating point value.
  *  @param pLhs Left side of binary expression if node is a binary expression.
  *  @param pRhs Right side of binary expression if node is a binary expression.
  *  @param pOper Operator of a binary expression.
@@ -1671,7 +1674,7 @@ NBASE_BOOL nbase_parse_identifier(NBASE_BOOL pVariableName)
     uint32_t i = 0;
     g_state.token[i++] = *g_state.nextchar++;
 
-    /* TODO(Pablo): check identifier string too long. */
+    /* TODO(Pablo): check for identifier name too long. */
 
     while (isalnum(*g_state.nextchar) || *g_state.nextchar == '_' || *g_state.nextchar == '#')
     {
@@ -1814,7 +1817,7 @@ int32_t nbase_get_next_token(NBASE_BOOL pInterpret, NBASE_BOOL pVariableName)
     
     nbase_skip_spaces();
 
-    /* If we are interpreting a command, don't accept anything that's not and
+    /* If we are interpreting a command, don't accept anything that's not an
         identifier. */
     if(pInterpret && !isalpha(*g_state.nextchar) && *g_state.nextchar != '_' &&
         *g_state.nextchar != '.' &&
@@ -1890,11 +1893,13 @@ int32_t nbase_get_next_token(NBASE_BOOL pInterpret, NBASE_BOOL pVariableName)
         {
             if(kw->func)
             {
+                /* If keyword found, run its handler... */
                 kw->func();
                 return g_state.next_tok;
             }
             else
             {
+                /* ...if kw not found, if we are interpreting then trigger error, if not, return its token. */
                 if(pInterpret)
                     nbase_error(nbase_error_type_UNKNOWN_KEYWORD, THIS_FILE, __FUNCTION__, __LINE__, ": %s", start);
                 return kw->token;
@@ -1902,6 +1907,7 @@ int32_t nbase_get_next_token(NBASE_BOOL pInterpret, NBASE_BOOL pVariableName)
         }
         else
         {
+            /* If kw not found, if we are interpreting then trigger error. */
             if(pInterpret)
                 nbase_error(nbase_error_type_EXPECTED_KEYWORD, THIS_FILE, __FUNCTION__, __LINE__, " at: ... %s", start);
         }
@@ -1946,11 +1952,20 @@ void nbase_reset_state()
 {
     int32_t num_objs;
     
-    g_state.nextchar = NULL;
+    /* Clear input buffer. */
+    g_state.nextchar = g_state.input_buffer;
+    memset(g_state.input_buffer, 0, NBASE_MAX_LINE_LEN_PLUS_1);
+    
+    /* Clear line count, some parser state. */
     g_state.in_line = 0;
     g_state.n_lines = 0;
     g_state.int32val = 0;
+    g_state.fltval = 0.0f;
+
+    /* Clear paren level. */
     g_state.paren_level = 0;
+    
+    /* Turn off tokenizing flag. */
     g_state.state_flags &= ~nbase_state_flag_TOKENIZING;
     
     /* Clear variables and data area. */

@@ -92,9 +92,9 @@ void nbase_tokenize_keyword(nbase_token pCode)
     {
         uint16_t* p = (uint16_t*)g_state.code_limit;
 
-#ifdef NBASE_DEBUG
+#ifdef NBASE_DEBUG_TOKENIZER
         NBASE_PRINTF("tokenize_keyword: %p = 0%XH %s\n", (void*)p, pCode, nbase_token_code_to_name(pCode));
-#endif /* NBASE_DEBUG */
+#endif /* NBASE_DEBUG_TOKENIZER */
 
         *p++ = pCode;
         g_state.code_limit = (uint8_t*)p;
@@ -116,39 +116,39 @@ void nbase_tokenize_factor(nbase_ast_node* pNode)
     switch(pNode->data_type)
     {
     case nbase_datatype_FLOAT:
-#ifdef NBASE_DEBUG
+#ifdef NBASE_DEBUG_TOKENIZER
         NBASE_PRINTF("tokenize_factor:  %p = '&'\n", (void*)p8);
-#endif /* NBASE_DEBUG */
+#endif /* NBASE_DEBUG_TOKENIZER */
         *p8++ = '&';
         pflt = (NBASE_FLOAT*)p8;
-#ifdef NBASE_DEBUG
+#ifdef NBASE_DEBUG_TOKENIZER
         NBASE_PRINTF("tokenize_factor:  %p = %.50f\n", (void*)pflt, pNode->u.flt_val);
-#endif /* NBASE_DEBUG */
+#endif /* NBASE_DEBUG_TOKENIZER */
         *pflt++ = pNode->u.flt_val;
         g_state.code_limit = (uint8_t*)pflt;
         break;
         
     case nbase_datatype_INTEGER:
-#ifdef NBASE_DEBUG
+#ifdef NBASE_DEBUG_TOKENIZER
         NBASE_PRINTF("tokenize_factor:  %p = '!'\n", (void*)p8);
-#endif /* NBASE_DEBUG */
+#endif /* NBASE_DEBUG_TOKENIZER */
         *p8++ = '!';
         pint = (NBASE_INTEGER*)p8;
-#ifdef NBASE_DEBUG
+#ifdef NBASE_DEBUG_TOKENIZER
         NBASE_PRINTF("tokenize_factor:  %p = %d\n", (void*)pint, pNode->u.int_val);
-#endif /* NBASE_DEBUG */
+#endif /* NBASE_DEBUG_TOKENIZER */
         *pint++ = pNode->u.int_val;
         g_state.code_limit = (uint8_t*)pint;
         break;
 
     case nbase_datatype_STRING:
-#ifdef NBASE_DEBUG
+#ifdef NBASE_DEBUG_TOKENIZER
         NBASE_PRINTF("tokenize_factor:  %p = '$'\n", (void*)p8);
-#endif /* NBASE_DEBUG */
+#endif /* NBASE_DEBUG_TOKENIZER */
         *p8++ = '$';
-#ifdef NBASE_DEBUG
+#ifdef NBASE_DEBUG_TOKENIZER
         NBASE_PRINTF("tokenize_factor:  %p = \"%s\" (%lu)\n", (void*)p8, pNode->u.str_val, strlen(pNode->u.str_val) + 1);
-#endif /* NBASE_DEBUG */
+#endif /* NBASE_DEBUG_TOKENIZER */
         strcpy((char*)p8, pNode->u.str_val);
         p8 += strlen(pNode->u.str_val);
         *p8++ = '\0';
@@ -170,26 +170,26 @@ void nbase_tokenize_var(nbase_datatype pType, const char* pName)
     switch(pType)
     {
     case nbase_datatype_FLOAT:
-#ifdef NBASE_DEBUG
+#ifdef NBASE_DEBUG_TOKENIZER
         NBASE_PRINTF("tokenize_var:  %p = '@'\n", (void*)p8);
         NBASE_PRINTF("tokenize_var:  %p = '&'\n", (void*)p8 + 1);
-#endif /* NBASE_DEBUG */
+#endif /* NBASE_DEBUG_TOKENIZER */
         *p8++ = '@';
         *p8++ = '&';
         break;
     case nbase_datatype_INTEGER:
-#ifdef NBASE_DEBUG
+#ifdef NBASE_DEBUG_TOKENIZER
         NBASE_PRINTF("tokenize_var:  %p = '@'\n", (void*)p8);
         NBASE_PRINTF("tokenize_var:  %p = '!'\n", (void*)p8 + 1);
-#endif /* NBASE_DEBUG */
+#endif /* NBASE_DEBUG_TOKENIZER */
         *p8++ = '@';
         *p8++ = '!';
         break;
     case nbase_datatype_STRING:
-#ifdef NBASE_DEBUG
+#ifdef NBASE_DEBUG_TOKENIZER
         NBASE_PRINTF("tokenize_var:  %p = '@'\n", (void*)p8);
         NBASE_PRINTF("tokenize_var:  %p = '$'\n", (void*)p8 + 1);
-#endif /* NBASE_DEBUG */
+#endif /* NBASE_DEBUG_TOKENIZER */
         *p8++ = '@';
         *p8++ = '$';
         break;
@@ -200,9 +200,9 @@ void nbase_tokenize_var(nbase_datatype pType, const char* pName)
         break;
     }
 
-#ifdef NBASE_DEBUG
+#ifdef NBASE_DEBUG_TOKENIZER
         NBASE_PRINTF("tokenize_var:  %p = \"%s\" (%lu)\n", (void*)p8, pName, strlen(pName) + 1);
-#endif /* NBASE_DEBUG */
+#endif /* NBASE_DEBUG_TOKENIZER */
         strcpy((char*)p8, pName);
         p8 += strlen(pName);
         *p8++ = '\0';

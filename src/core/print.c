@@ -4,6 +4,13 @@
  *
  * 04 nov 2022 -- 17:39 -03
  * Notes:
+ * 
+ * A real headache to implement variable args keywords...
+ * Also, PRINT is one of several cases were the line is tokenized and run in place.
+ * For keywords that are not tokenized and run in place (eg. they have no arguments and
+ * its handler is simpler than this), the handler is executed when parsed, the default
+ * way of compiling (tokenizing as part of a program) such simple commands is through
+ * '.' keyword (alias LOADLINE).
  */
 
 /* -------------------------------------------------------------------------------- */
