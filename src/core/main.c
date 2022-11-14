@@ -59,7 +59,7 @@ In data area:
 /* Output garbage collector's debugging info to standard console output. */ 
 #define NBASE_DEBUG_GC
 /* Output tokenizer's debugging info to standard console output. */ 
-/*#define NBASE_DEBUG_TOKENIZER*/
+#define NBASE_DEBUG_TOKENIZER
 /* Enable color escape sequences to standard console output. */
 #define NBASE_USE_ESCAPE_ANSI_COLORS
 

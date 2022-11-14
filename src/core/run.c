@@ -58,10 +58,10 @@ next:
             /* Build node to evaluate. */
             nbase_eval_node node, node_out;
             uint8_t* cp = (uint8_t*)(pcode + 1);
-            nbase_build_node(&cp, &node);
+            nbase_token unary = nbase_build_node(&cp, &node);
 
             /* Call expression evaluator. */
-            nbase_eval_expression(&node, &cp, &node_out);
+            nbase_eval_expression(unary, &node, &cp, &node_out);
             switch(node.data_type)
             {
             case nbase_datatype_FLOAT:
@@ -90,7 +90,6 @@ next:
         if(!(*pcode) && !(*(pcode + 1)))
             /* End of program: two consecutive zero tokens. */
             return;
-        break;
 
     default:
         NBASE_ASSERT_OR_ERROR(0,
