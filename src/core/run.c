@@ -44,6 +44,9 @@ next:
         NBASE_PRINT("\n");
         break;
     
+    case nbase_token_RIGHTPAREN:
+        break;
+    
     case nbase_token_EOL:
         break;
     
@@ -55,9 +58,13 @@ next:
         }
         else
         {
-            /* Build node to evaluate. */
             nbase_eval_node node, node_out;
-            uint8_t* cp = (uint8_t*)(pcode + 1);
+            uint8_t* cp;
+
+next_print:            
+
+            /* Build node to evaluate. */
+            cp = (uint8_t*)(pcode + 1);
             nbase_token unary = nbase_build_node(&cp, &node);
 
             /* Call expression evaluator. */
@@ -82,6 +89,9 @@ next:
                 break;
             }
             pcode = (uint16_t*)cp;
+            /* Got a ';' ? */
+            if(*pcode == nbase_token_SEMICOLON)
+                goto next_print;
             goto next;
         }
         break;

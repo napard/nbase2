@@ -14,13 +14,6 @@
 
 struct _nbase_eval_node;
 
-typedef struct _nbase_eval_op
-{
-    struct _nbase_eval_node* lhs;
-    struct _nbase_eval_node* rhs;
-    uint16_t oper;
-} nbase_eval_op;
-
 typedef struct _nbase_eval_node
 {
     nbase_datatype data_type;
@@ -29,7 +22,6 @@ typedef struct _nbase_eval_node
         char* str_val;
         NBASE_INTEGER int_val;
         NBASE_FLOAT flt_val;
-        nbase_eval_op op;
         void* extra; /* Variable reference. */
     } v;
 } nbase_eval_node;
@@ -79,17 +71,30 @@ nbase_token nbase_build_node(uint8_t** pPtr, nbase_eval_node* pNodeOut)
     case '&':
         pNodeOut->data_type = nbase_datatype_FLOAT;
         pNodeOut->v.flt_val = *((NBASE_FLOAT*)cp);
-        (*pPtr) += sizeof(NBASE_FLOAT) + 1/* - 2*/;
+        (*pPtr) += sizeof(NBASE_FLOAT) + 1;
         break;
     case '!':
         pNodeOut->data_type = nbase_datatype_INTEGER;
         pNodeOut->v.int_val = *((NBASE_INTEGER*)cp);
-        (*pPtr) += sizeof(NBASE_INTEGER) + 1/* - 2*/;
+        (*pPtr) += sizeof(NBASE_INTEGER) + 1;
         break;
     case '$':
         pNodeOut->data_type = nbase_datatype_STRING;
         pNodeOut->v.str_val = (char*)cp;
         /* TODO: INCREMENT POINTER */
+        break;
+
+    case '(':
+        {
+            cp++;
+            nbase_eval_node node;
+            nbase_token unary = nbase_build_node(&cp, &node);
+
+            /* Call expression evaluator. */
+            nbase_eval_expression(unary, &node, &cp, pNodeOut);
+            /* NOTE(Pablo): matching parentheses should has been already handled by the parser. */
+            *pPtr = cp + 2;
+        }
         break;
     
     default:
@@ -104,7 +109,7 @@ nbase_token nbase_build_node(uint8_t** pPtr, nbase_eval_node* pNodeOut)
 
 void nbase_eval_factor(nbase_eval_node* pNode, nbase_eval_node* pNodeOut)
 {
-    /* TODO: take into account parentheses and other... (see 'nbase_parse_factor' as reference). */
+    /* TODO: take into account variables and other... (see 'nbase_parse_factor' as reference). */
     
     switch(pNode->data_type)
     {

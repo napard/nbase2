@@ -19,9 +19,9 @@ void nbase_keyword_DUMP()
 {
     if(!NBASE_TOKENIZING)
     {
-        uint32_t k = 0;
+        uint32_t i, k = 0;
         uint8_t* p = NBASE_CODE_AREA_BASE;
-        for(uint32_t i = 0; i < 128; i++)
+        for(i = 0; i < 128; i++)
         {
             NBASE_PRINTF("%02x ", *(p + i) & 0xff);
             if(i > 0 && ((i + 1) % 4) == 0)

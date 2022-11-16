@@ -1,8 +1,12 @@
-* Rewrite expression evaluator for RUN tokenized code. PARTIAL
-* Fix new line variants in PRINT.
+* Rewrite expression evaluator for RUN tokenized code. PARTIAL, ALMOST THERE...
 * Recheck ALL PRINT tests, interpreted and compiled.
 * Recheck all variable references, interpreted and compiled.
+* Recheck use of colon for multiple commands in line, for all implemented keywords.
 * Reimplement LIST for tokenized code.
 * Eliminate unnecessary defaults in switch constructs.
 * See error 'ERROR[1]: (PARSERR17) EXPECTED END OF LINE' for 'PRINT 1,'
   there is no space between error message and new prompt.
+  Same for 'ERROR[8]: (PARSERR1) NUMBER PARSE ERROR'
+
+* Fix PRINT variants (empty args, semicolon, etc.) SEEMS OK, NEEDS TESTING.
+

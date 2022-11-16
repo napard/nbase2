@@ -27,7 +27,7 @@ static const char* PRINT_FILE = "print.c";
 void nbase_keyword_PRINT()
 {
     nbase_ast_node* node = NULL;
-    NBASE_BOOL nl = true;
+    NBASE_BOOL last_nl = true;
 
     /* If not tokenizing, clear code area to evaluate this line now. */
     if(!NBASE_TOKENIZING)
@@ -51,7 +51,7 @@ void nbase_keyword_PRINT()
     {
         /* PRINT without args... */
         nbase_tokenize_keyword(nbase_token_NL);
-        nl = false;
+        last_nl = false;
     
         if (g_state.next_tok == nbase_token_COLON)
         {
@@ -72,12 +72,12 @@ void nbase_keyword_PRINT()
         /* PRINT with args... */
         while (node)
         {
-            nl = true;
-
             if (g_state.next_tok == nbase_token_COLON)
             {
                 /* If we get a colon, we expect a next command
                     on the same line as this PRINT. */
+                
+                nbase_tokenize_keyword(nbase_token_NL);
                 
                 /* If not tokenizing, run this line tokenized code now. */
                 if(!NBASE_TOKENIZING)
@@ -101,7 +101,6 @@ void nbase_keyword_PRINT()
             /* We got a semicolon, if next node parsed is not NULL, print it,
                 if it is NULL, leave the loop and a newline WILL NOT be printed at the end. */
             
-            nl = false;
             force_not_null = false;
             node = (nbase_ast_node*)nbase_parse_expression(&force_not_null);
 #ifdef NBASE_DEBUG__            
@@ -112,17 +111,15 @@ void nbase_keyword_PRINT()
         }
     }
 
-    if (nl)
-    {
+    if(last_nl)
         nbase_tokenize_keyword(nbase_token_NL);
-    }
 
     g_state.next_tok = nbase_token_EOL;
-    /*nbase_tokenize_keyword(nbase_token_EOL);*/
-
+    
     /* If not tokenizing, run this line tokenized code now. */
     if(!NBASE_TOKENIZING)
     {
+        nbase_tokenize_keyword(nbase_token_EOL);
         nbase_keyword_RUN();
     }
 }

@@ -109,16 +109,13 @@ In data area:
 /* -------------------------------------------------------------------------------- */
 /* Intrinsic interpreter macros. */
 
-#define NBASE_VERSION_MAYOR 1
+#define NBASE_VERSION_MAYOR 0
 #define NBASE_VERSION_MINOR 1
-#define NBASE_VERSION_PATCH 0
+#define NBASE_VERSION_PATCH 6
 
 /*! Max line length. */
 #define NBASE_MAX_LINE_LEN              80
 #define NBASE_MAX_LINE_LEN_PLUS_1       (NBASE_MAX_LINE_LEN + 1)
-/*#define NBASE_MAX_LINE_LEN_PLUS_2       (NBASE_MAX_LINE_LEN + 2)*/
-/*! Max line count. */
-/*#define NBASE_MAX_LINES                 256*/
 /*! Max token length. */
 #define NBASE_MAX_TOKEN_LEN             80
 /*! Max variable name length. */
@@ -267,7 +264,7 @@ typedef struct _nbase_state
     char token[NBASE_MAX_TOKEN_LEN + 1];
     nbase_token next_tok;
 
-    /* ----- Interactive interpreter. ----- */
+    /* ----- Interactive REPL. ----- */
 
     /*! Input buffer, separated from the general memory pool. */
     char input_buffer[NBASE_MAX_LINE_LEN_PLUS_1];
@@ -359,7 +356,7 @@ typedef enum _nbase_error_type
     nbase_error_type_EXPECTED_THEN, nbase_error_type_INCOMPATIBLE_ASSIGNMENT,
     nbase_error_type_UNRECOGNIZED_LEXER_TOKEN, /*nbase_error_type_CANT_OPEN_INPUT_FILE,*/
     nbase_error_type_DIVISION_BY_ZERO, nbase_error_type_DOM_ERROR_1,
-    nbase_error_type_DOM_ERROR_2, nbase_error_type_unknown_TOKEN
+    nbase_error_type_DOM_ERROR_2, nbase_error_type_unknown_TOKEN, nbase_error_type_SYNTAX_ERROR
 } nbase_error_type;
 
 /* -------------------------------------------------------------------------------- */
@@ -546,7 +543,8 @@ const char* g_nbase_error_messages[] = {
     "(MATHERR1) DIVISION BY ZERO",
     "(MATHERR2) DOM ERROR 1, FE_INVALID RAISED",
     "(MATHERR3) DOM ERROR 2, FE_DIVBYZERO RAISED",
-    "(RUNERR1) UNKNOWN TOKEN"
+    "(RUNERR1) UNKNOWN TOKEN",
+    "(RUNERR2) SYNTAX ERROR"
 };
 
 /* ******************************************************************************** */
@@ -843,6 +841,7 @@ void nbase_destroy_ast_node(NBASE_OBJECT* pNode)
 
 static int32_t g_tab_level1 = 0;
 
+#ifdef NBASE_DEBUG
 /*!
  *  Prints an AST node for debugging purposes.
  */
@@ -936,6 +935,7 @@ void nbase_print_ast_node(nbase_ast_node* pNode, const char* pNodeMsg)
             "UNKNOWN AST NODE", THIS_FILE, __FUNCTION__, __LINE__);
     }
 }
+#endif /* NBASE_DEBUG */
 
 /* ******************************************************************************** */
 
@@ -1008,8 +1008,6 @@ NBASE_BOOL nbase_is_integer_expr(nbase_ast_node* pNode, int pSign)
     }
     if (pNode->data_type != nbase_datatype_INTEGER)
         return false;
-    /*if (pNode->extra)
-        return false;*/
 
     return true;
 }

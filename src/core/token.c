@@ -172,7 +172,7 @@ void nbase_tokenize_var(nbase_datatype pType, const char* pName)
     case nbase_datatype_FLOAT:
 #ifdef NBASE_DEBUG_TOKENIZER
         NBASE_PRINTF("tokenize_var:  %p = '@'\n", (void*)p8);
-        NBASE_PRINTF("tokenize_var:  %p = '&'\n", (void*)p8 + 1);
+        NBASE_PRINTF("tokenize_var:  %p = '&'\n", (void*)(p8 + 1));
 #endif /* NBASE_DEBUG_TOKENIZER */
         *p8++ = '@';
         *p8++ = '&';
@@ -180,7 +180,7 @@ void nbase_tokenize_var(nbase_datatype pType, const char* pName)
     case nbase_datatype_INTEGER:
 #ifdef NBASE_DEBUG_TOKENIZER
         NBASE_PRINTF("tokenize_var:  %p = '@'\n", (void*)p8);
-        NBASE_PRINTF("tokenize_var:  %p = '!'\n", (void*)p8 + 1);
+        NBASE_PRINTF("tokenize_var:  %p = '!'\n", (void*)(p8 + 1));
 #endif /* NBASE_DEBUG_TOKENIZER */
         *p8++ = '@';
         *p8++ = '!';
@@ -188,7 +188,7 @@ void nbase_tokenize_var(nbase_datatype pType, const char* pName)
     case nbase_datatype_STRING:
 #ifdef NBASE_DEBUG_TOKENIZER
         NBASE_PRINTF("tokenize_var:  %p = '@'\n", (void*)p8);
-        NBASE_PRINTF("tokenize_var:  %p = '$'\n", (void*)p8 + 1);
+        NBASE_PRINTF("tokenize_var:  %p = '$'\n", (void*)(p8 + 1));
 #endif /* NBASE_DEBUG_TOKENIZER */
         *p8++ = '@';
         *p8++ = '$';
