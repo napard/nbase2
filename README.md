@@ -94,7 +94,7 @@ Terminates program execution.
 </br>
 
 ## .
-"Compile" following code line into tokenized form in code area.
+"Compiles" following code line into tokenized form in code area.
 </br>
 
 ## RUN

@@ -61,7 +61,7 @@ nbase_token nbase_build_node(uint8_t** pPtr, nbase_eval_node* pNodeOut)
 
     if(*((uint16_t*)cp) == nbase_token_NEGATED || *((uint16_t*)cp) == nbase_token_NOT)
     {
-        unary = *((uint16_t*)cp);
+        unary = (nbase_token)*((uint16_t*)cp);
         cp += 2;
         (*pPtr) += 2;
     }
@@ -81,7 +81,7 @@ nbase_token nbase_build_node(uint8_t** pPtr, nbase_eval_node* pNodeOut)
     case '$':
         pNodeOut->data_type = nbase_datatype_STRING;
         pNodeOut->v.str_val = (char*)cp;
-        /* TODO: INCREMENT POINTER */
+        (*pPtr) += strlen((const char*)cp) + 2;
         break;
 
     case '(':

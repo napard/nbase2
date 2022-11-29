@@ -1,0 +1,29 @@
+NBASE_DEFINITIONS
+
+Only compile definitions and type declarations.
+
+NBASE_IMPLEMENTATION
+
+Compile implementation.
+
+NBASE_DEFINE_PROPER_MAIN
+
+Define a real main function for standalone interpreter.
+
+NBASE_DEFINE_ATEXTIT
+
+Define a default atexit handler.
+
+NBASE_STANDALONE
+
+Define some stuff that is only needed when compiled for standalone use.
+
+NBASE_IMPLEMENT_REPL
+
+Implement a default REPL.
+
+NBASE_IMPLEMENT_LINE_INTERPRETER
+
+Implement a function that acts as line interpreter, useful for replacing the REPL.
+
+

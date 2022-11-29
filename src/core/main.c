@@ -48,6 +48,8 @@ In data area:
 
 */
 
+#ifdef NBASE_DEFINITIONS
+
 /* -------------------------------------------------------------------------------- */
 /* Compilation process macros. */
 
@@ -55,7 +57,7 @@ In data area:
 #define NBASE_DEBUG
 
 /* Output malloc/free debugging info to standard console output. */ 
-/* #define NBASE_DEBUG_MALLOC */
+#define NBASE_DEBUG_MALLOC
 /* Output garbage collector's debugging info to standard console output. */ 
 #define NBASE_DEBUG_GC
 /* Output tokenizer's debugging info to standard console output. */ 
@@ -64,7 +66,7 @@ In data area:
 #define NBASE_USE_ESCAPE_ANSI_COLORS
 
 /* Enable setjmp/longjmp error recovering. */
-#define NBASE_ENABLE_LONGJMP_ERROR_RECOVERY
+/*#define NBASE_ENABLE_LONGJMP_ERROR_RECOVERY*/
 
 #ifdef NBASE_USE_ESCAPE_ANSI_COLORS
 #define NBASE_PRINT_CYAN       "\x1b[36m"
@@ -103,15 +105,18 @@ In data area:
 #define NBASE_ENDTRY          }} while(0);
 #define NBASE_THROW(errcod)   longjmp(g_state.except_buff, errcod);
 #else
-#error No error recovery mechanism available.
+/*#error No error recovery mechanism available.*/
 #endif /* NBASE_ENABLE_LONGJMP_ERROR_RECOVERY */
+
+/*#define NBASE_DEFINE_PROPER_MAIN*/
+/*#define NBASE_DEFINE_ATEXTIT*/
 
 /* -------------------------------------------------------------------------------- */
 /* Intrinsic interpreter macros. */
 
 #define NBASE_VERSION_MAYOR 0
 #define NBASE_VERSION_MINOR 1
-#define NBASE_VERSION_PATCH 6
+#define NBASE_VERSION_PATCH 7
 
 /*! Max line length. */
 #define NBASE_MAX_LINE_LEN              80
@@ -399,6 +404,12 @@ int32_t             nbase_parse_single_char_token(char pTest, bool pUpdateParent
 int32_t             nbase_get_next_token(NBASE_BOOL pInterpret, NBASE_BOOL pVariableName);
 uint32_t            nbase_get_size_of_type(nbase_datatype pType);
 void                nbase_reset_state();
+#ifndef NBASE_DEFINE_PROPER_MAIN
+int                 nbase_main(int argc, char** argv);
+#endif /* !NBASE_DEFINE_PROPER_MAIN */
+#ifdef NBASE_IMPLEMENT_LINE_INTERPRETER
+void                nbase_interpret_line(const char* pText);
+#endif /* NBASE_IMPLEMENT_LINE_INTERPRETER */
 
 #define KEYWORDS_DEFINITIONS
 #include "keywords.c"
@@ -424,9 +435,7 @@ void                nbase_reset_state();
 #include "../debugtools/dump.c"
 #endif /* NBASE_INCLUDE_FEATURE_DEBUGTOOLS */
 
-/* -------------------------------------------------------------------------------- */
-
-#define NBASE_IMPLEMENTATION
+#endif /* NBASE_DEFINITIONS */
 
 #ifdef NBASE_IMPLEMENTATION
 
@@ -463,54 +472,56 @@ char g_temp_buff[NBASE_MAX_LINE_LEN_PLUS_1];
 
 /* -------------------------------------------------------------------------------- */
 
+#ifdef NBASE_STANDALONE
 static const char* THIS_FILE = "main.c";
+#endif // NBASE_STANDALONE
 
 /*! Type names. */
 char *g_nbase_type_names[] =
 {
-    "UNKNOWN",
-    "FLOAT",
-    "INTEGER",
-    "STRING"
+    (char*)"UNKNOWN",
+    (char*)"FLOAT",
+    (char*)"INTEGER",
+    (char*)"STRING"
 };
 
 /*! Keyword table. */
 nbase_keyword g_nbase_keywords[] =
 {
-    {"PRINT",           nbase_keyword_PRINT,    nbase_token_PRINT},
-    {"REM",             /*nbase_keyword_REM*/NULL,      nbase_token_REM},
-    {"DIM",             /*nbase_keyword_DIM*/NULL,      nbase_token_DIM},
-    {"LET",             /*nbase_keyword_LET*/NULL,      nbase_token_LET},
+    {(char*)"PRINT",           nbase_keyword_PRINT,    nbase_token_PRINT},
+    {(char*)"REM",             /*nbase_keyword_REM*/NULL,      nbase_token_REM},
+    {(char*)"DIM",             /*nbase_keyword_DIM*/NULL,      nbase_token_DIM},
+    {(char*)"LET",             /*nbase_keyword_LET*/NULL,      nbase_token_LET},
 
-    {"MOD",             NULL,                   nbase_token_MOD},
+    {(char*)"MOD",             NULL,                   nbase_token_MOD},
 
-    {"LSHIFT",          NULL,                   nbase_token_LSHIFT},
-    {"RSHIFT",          NULL,                   nbase_token_RSHIFT},
-    {"<=",              NULL,                   nbase_token_LESSEQ},
-    {">=",              NULL,                   nbase_token_GREATEREQ},
-    {"<>",              NULL,                   nbase_token_NEQUALS},
+    {(char*)"LSHIFT",          NULL,                   nbase_token_LSHIFT},
+    {(char*)"RSHIFT",          NULL,                   nbase_token_RSHIFT},
+    {(char*)"<=",              NULL,                   nbase_token_LESSEQ},
+    {(char*)">=",              NULL,                   nbase_token_GREATEREQ},
+    {(char*)"<>",              NULL,                   nbase_token_NEQUALS},
 
-    {"AND",             NULL,                   nbase_token_AND},
-    {"OR",              NULL,                   nbase_token_OR},
-    {"XOR",             NULL,                   nbase_token_XOR},
-    {"NOT",             NULL,                   nbase_token_NOT},
-    {"GC",              nbase_keyword_GC,       nbase_token_GC},
-    {"END",             nbase_keyword_END,      nbase_token_END},
-    /*{"CLEAR",           nbase_keyword_CLEAR,    nbase_token_CLEAR},*/
-    {"LIST",            /*nbase_keyword_LIST*/NULL,     nbase_token_LIST},
-    /*{"GOTO",            *nbase_keyword_GOTO,     nbase_token_GOTO},*/
+    {(char*)"AND",             NULL,                   nbase_token_AND},
+    {(char*)"OR",              NULL,                   nbase_token_OR},
+    {(char*)"XOR",             NULL,                   nbase_token_XOR},
+    {(char*)"NOT",             NULL,                   nbase_token_NOT},
+    {(char*)"GC",              nbase_keyword_GC,       nbase_token_GC},
+    {(char*)"END",             nbase_keyword_END,      nbase_token_END},
+    /*{(char*)"CLEAR",           nbase_keyword_CLEAR,    nbase_token_CLEAR},*/
+    {(char*)"LIST",            /*nbase_keyword_LIST*/NULL,     nbase_token_LIST},
+    /*{(char*)"GOTO",            *nbase_keyword_GOTO,     nbase_token_GOTO},*/
 #if 0
-    {"IF#",             nbase_keyword_IF_NUM,   nbase_token_IF_NUM},
+    {(char*)"IF#",             nbase_keyword_IF_NUM,   nbase_token_IF_NUM},
 #endif
-    {"RUN",             nbase_keyword_RUN,      nbase_token_RUN},
+    {(char*)"RUN",             nbase_keyword_RUN,      nbase_token_RUN},
     
 #ifdef NBASE_INCLUDE_FEATURE_DEBUGTOOLS
-    {"LVAR",            nbase_keyword_LVAR,     nbase_token_LVAR},
-    {"STAT",            nbase_keyword_STAT,     nbase_token_STAT},
-    {"DUMP",            nbase_keyword_DUMP,     nbase_token_DUMP},
+    {(char*)"LVAR",            nbase_keyword_LVAR,     nbase_token_LVAR},
+    {(char*)"STAT",            nbase_keyword_STAT,     nbase_token_STAT},
+    {(char*)"DUMP",            nbase_keyword_DUMP,     nbase_token_DUMP},
 #endif /* NBASE_INCLUDE_FEATURE_DEBUGTOOLS */    
     
-    {".",               nbase_keyword_LOADLINE, nbase_token_LOADLINE},
+    {(char*)".",               nbase_keyword_LOADLINE, nbase_token_LOADLINE},
     
     {NULL,              NULL,                   0}
 };
@@ -556,7 +567,7 @@ void* nbase_malloc(uint32_t pNumBytes)
     NBASE_ASSERT((ptr = NBASE_MALLOC(pNumBytes)));
 
 #ifdef NBASE_DEBUG_MALLOC
-    printf(NBASE_PRINT_GREEN"nbase_malloc: num_bytes= %u, ptr= %p\n"NBASE_PRINT_DEFAULT, pNumBytes, ptr);
+    printf(NBASE_PRINT_GREEN "nbase_malloc: num_bytes= %u, ptr= %p\n" NBASE_PRINT_DEFAULT, pNumBytes, ptr);
 #endif /* NBASE_DEBUG_MALLOC */
 
     return ptr;
@@ -568,7 +579,7 @@ void nbase_free(void* pPtr)
 {
 #ifdef NBASE_DEBUG_MALLOC
     if(pPtr)
-        printf(NBASE_PRINT_RED"nbase_free: ptr= %p\n"NBASE_PRINT_DEFAULT, pPtr);
+        printf(NBASE_PRINT_RED "nbase_free: ptr= %p\n" NBASE_PRINT_DEFAULT, pPtr);
 #endif /* NBASE_DEBUG_MALLOC */
     
     NBASE_FREE(pPtr);
@@ -601,7 +612,7 @@ void nbase_gc_mark(NBASE_OBJECT* pObj)
     pObj->obj_type |= NBASE_OBJECT_GC_MARK;
 
 #ifdef NBASE_DEBUG_GC
-    printf(NBASE_PRINT_YELLOW"nbase_gc: marked= %p\n"NBASE_PRINT_DEFAULT, (void*)pObj);
+    printf(NBASE_PRINT_YELLOW "nbase_gc: marked= %p\n" NBASE_PRINT_DEFAULT, (void*)pObj);
     g_state.gc_marked++;
 #endif /* NBASE_DEBUG_GC */
 }
@@ -663,13 +674,13 @@ void nbase_gc()
 
     nbase_gc_mark_all();
 #ifdef NBASE_DEBUG_GC
-    printf(NBASE_PRINT_YELLOW"nbase_gc: num_objs= %u\n"NBASE_PRINT_DEFAULT, num_objs);
-    printf(NBASE_PRINT_YELLOW"nbase_gc: live= %u\n"NBASE_PRINT_DEFAULT, g_state.gc_marked);
+    printf(NBASE_PRINT_YELLOW "nbase_gc: num_objs= %u\n" NBASE_PRINT_DEFAULT, num_objs);
+    printf(NBASE_PRINT_YELLOW "nbase_gc: live= %u\n" NBASE_PRINT_DEFAULT, g_state.gc_marked);
 #endif /* NBASE_DEBUG_GC */
 
     nbase_gc_sweep();
 #ifdef NBASE_DEBUG_GC
-    printf(NBASE_PRINT_YELLOW"nbase_gc: destroyed= %u\n"NBASE_PRINT_DEFAULT, g_state.gc_destroyed);
+    printf(NBASE_PRINT_YELLOW "nbase_gc: destroyed= %u\n" NBASE_PRINT_DEFAULT, g_state.gc_destroyed);
 #endif /* NBASE_DEBUG_GC */
 
     /* Update max_objs, this makes the heap grow or shrink depending on last
@@ -741,7 +752,7 @@ NBASE_OBJECT* nbase_alloc_ast_node(nbase_ast_type pType, nbase_datatype pDataTyp
             if(!pExtra)
             {
                 ((char*)pStrVal)[strlen(pStrVal) - 1] = '\0';
-                NBASE_ASSERT((node->u.str_val = nbase_malloc(strlen(pStrVal) + 1)));
+                NBASE_ASSERT((node->u.str_val = (char*)nbase_malloc(strlen(pStrVal) + 1)));
                 strcpy(node->u.str_val, pStrVal);
             }
             else
@@ -921,7 +932,7 @@ void nbase_print_ast_node(nbase_ast_node* pNode, const char* pNodeMsg)
     
     case nbase_ast_type_VARIABLE:
     {
-        nbase_variable* var = pNode->extra;
+        nbase_variable* var = (nbase_variable*)pNode->extra;
         uint32_t i;
         NBASE_PRINTF("VARIABLE: name=%s data_type= %s data_offset=%d dims=", var->name, g_nbase_type_names[var->type], var->data_offset);
         for(i = 0; i < NBASE_MAX_ARRAY_DIMENSION; i++)
@@ -962,7 +973,7 @@ void nbase_error(nbase_error_type pErrType, const char* pSrcFile, const char* pS
     exit(-pErrType);
 #else
     NBASE_THROW(pErrType);
-#endif /* NBASE_ENABLE_LONGJMP_ERROR_RECOVERY */
+#endif /* !NBASE_ENABLE_LONGJMP_ERROR_RECOVERY */
 }
 
 /* ******************************************************************************** */
@@ -1038,7 +1049,7 @@ NBASE_OBJECT* nbase_parse_factor(NBASE_BOOL* pForceNotNull)
     /* Is factor a number? */
     if (isdigit(*g_state.nextchar))
     {
-        g_state.next_tok = nbase_get_next_token(false, false);
+        g_state.next_tok = (nbase_token)nbase_get_next_token(false, false);
         if (g_state.next_tok != nbase_token_LEXER_ERROR)
         {
             if(g_state.next_tok == nbase_token_FLOAT_LITERAL)
@@ -1070,7 +1081,7 @@ NBASE_OBJECT* nbase_parse_factor(NBASE_BOOL* pForceNotNull)
     /* Is factor a string literal? */
     else if (*g_state.nextchar == '"')
     {
-        g_state.next_tok = nbase_get_next_token(false, false);
+        g_state.next_tok = (nbase_token)nbase_get_next_token(false, false);
     
         node = nbase_alloc_ast_node(nbase_ast_type_FACTOR, nbase_datatype_STRING,
             g_state.token + 1, 0, 0, NULL, NULL, 0, NULL);
@@ -1080,7 +1091,7 @@ NBASE_OBJECT* nbase_parse_factor(NBASE_BOOL* pForceNotNull)
     /* Read a ':' ? */
     else if (*g_state.nextchar == ':')
     {
-        g_state.next_tok = nbase_get_next_token(false, false);
+        g_state.next_tok = (nbase_token)nbase_get_next_token(false, false);
         return NULL;
     }
     /* Variable? */
@@ -1102,7 +1113,7 @@ NBASE_OBJECT* nbase_parse_factor(NBASE_BOOL* pForceNotNull)
                 
                 nbase_tokenize_keyword(nbase_token_LEFTPAREN);
 
-                g_state.next_tok = nbase_get_next_token(false, false);
+                g_state.next_tok = (nbase_token)nbase_get_next_token(false, false);
                 g_state.paren_level++;
 
                 force_not_null = true;
@@ -1153,7 +1164,7 @@ NBASE_OBJECT* nbase_parse_factor(NBASE_BOOL* pForceNotNull)
             return NULL;
     }
 
-    g_state.next_tok = nbase_get_next_token(false, false);
+    g_state.next_tok = (nbase_token)nbase_get_next_token(false, false);
 
     return node;
 }
@@ -1175,7 +1186,7 @@ NBASE_OBJECT* nbase_parse_term(NBASE_BOOL* pForceNotNull)
         !strncmp(g_state.nextchar, "NOT", 3)             /* NOT */
     )  
     {
-        g_state.next_tok = unary = nbase_get_next_token(false, false);
+        g_state.next_tok = unary = (nbase_token)nbase_get_next_token(false, false);
         /* If unary operator found, ensure an expression is present. */
         *pForceNotNull = true;
     }
@@ -1428,7 +1439,7 @@ nbase_token nbase_search_keyword_token(const char* pToken)
 {
     nbase_keyword* kw = nbase_search_keyword(pToken);
     if(kw)
-        return kw->token;
+        return (nbase_token)kw->token;
 
     return nbase_token_NONE;
 }
@@ -1437,7 +1448,7 @@ nbase_token nbase_search_keyword_token(const char* pToken)
 
 void nbase_parse_colon()
 {
-    g_state.next_tok = nbase_get_next_token(false, false);
+    g_state.next_tok = (nbase_token)nbase_get_next_token(false, false);
     if(g_state.next_tok != nbase_token_COLON)
     {
         NBASE_ASSERT_OR_ERROR(g_state.next_tok == nbase_token_EOL,
@@ -1844,7 +1855,7 @@ int32_t nbase_get_next_token(NBASE_BOOL pInterpret, NBASE_BOOL pVariableName)
         return nbase_parse_number();
     }
     /* Single char token. */
-    else if ((tok = nbase_parse_single_char_token(0, false)))
+    else if ((tok = (nbase_token)nbase_parse_single_char_token(0, false)))
     {
         /* Special case for compound operators based on single chars. */
         if(tok == nbase_token_LESSEQ ||
@@ -1995,18 +2006,24 @@ void nbase_reset_state()
 #endif /* DBG */
 }
 
-#endif /* NBASE_IMPLEMENTATION */
-
 /* -------------------------------------------------------------------------------- */
 
+#ifdef NBASE_DEFINE_ATEXTIT
 void nbase_atexit()
 {
     nbase_free(g_state.mem_pool);
 }
+#endif /* NBASE_DEFINE_ATEXTIT */
 
+#ifdef NBASE_DEFINE_PROPER_MAIN
 int main(int argc, char** argv)
+#else
+int nbase_main(int argc, char** argv)
+#endif /* NBASE_DEFINE_PROPER_MAIN */
 {
+#ifdef NBASE_DEFINE_ATEXTIT
     atexit(nbase_atexit);
+#endif /* NBASE_DEFINE_ATEXTIT */
 
     g_state.nextchar = NULL;
     g_state.in_line = 0;
@@ -2016,7 +2033,7 @@ int main(int argc, char** argv)
     g_state.num_objs = 0;
     g_state.max_objs = NBASE_GC_INITIAL_THRESHOLD;
     g_state.obj_list = NULL;
-    g_state.mem_pool = nbase_malloc(NBASE_MAX_RAM_SIZE);
+    g_state.mem_pool = (uint8_t*)nbase_malloc(NBASE_MAX_RAM_SIZE);
     memset(g_state.mem_pool, 0, NBASE_MAX_RAM_SIZE);
     g_state.vars_limit = (uint64_t*)NBASE_VARS_AREA_BASE;
     g_state.data_limit = NBASE_DATA_AREA_BASE;
@@ -2024,6 +2041,7 @@ int main(int argc, char** argv)
 
     nbase_print_info_and_version();
 
+#ifdef NBASE_IMPLEMENT_REPL
     /* REPL */
     while(true)
     {
@@ -2034,7 +2052,7 @@ int main(int argc, char** argv)
             
             g_state.nextchar = g_state.input_buffer;
 cont2:        
-            g_state.next_tok = nbase_get_next_token(true, false);
+            g_state.next_tok = (nbase_token)nbase_get_next_token(true, false);
             if(g_state.next_tok == nbase_token_EOL)
                 g_state.in_line++;
             else if(g_state.next_tok == nbase_token_COLON)
@@ -2052,4 +2070,32 @@ cont2:
         }
         NBASE_ENDTRY;
     }
+#endif /* NBASE_IMPLEMENT_REPL */
+
+    return 0;
 }
+
+#ifdef NBASE_IMPLEMENT_LINE_INTERPRETER
+void nbase_interpret_line(const char* pText)
+{
+    strncpy(g_state.input_buffer, pText, NBASE_MAX_LINE_LEN);
+    g_state.input_buffer[NBASE_MAX_LINE_LEN] = '\0';
+    
+    g_state.nextchar = g_state.input_buffer;
+cont2:        
+    g_state.next_tok = (nbase_token)nbase_get_next_token(true, false);
+    if(g_state.next_tok == nbase_token_EOL)
+        g_state.in_line++;
+    else if(g_state.next_tok == nbase_token_COLON)
+        goto cont2;
+
+    if(g_state.state_flags & nbase_state_flag_GC_PENDING)
+    {
+        g_state.state_flags &= ~nbase_state_flag_GC_PENDING;
+        nbase_gc();
+    }
+}
+#endif /* NBASE_IMPLEMENT_LINE_INTERPRETER */
+
+#endif /* NBASE_IMPLEMENTATION */
+

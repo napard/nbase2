@@ -35,13 +35,14 @@ void nbase_keyword_END()
 /* . */
 void nbase_keyword_LOADLINE()
 {
+#ifdef NBASE_STANDALONE
     NBASE_TRY
     {
         g_state.state_flags |= nbase_state_flag_TOKENIZING;
         
         g_state.nextchar = g_state.input_buffer + 1;
 cont2:        
-        g_state.next_tok = nbase_get_next_token(true, false);
+        g_state.next_tok = (nbase_token)nbase_get_next_token(true, false);
         
         if(g_state.next_tok == nbase_token_EOL)
         {
@@ -68,6 +69,7 @@ cont2:
 
     nbase_tokenize_keyword(nbase_token_EOL);
     g_state.state_flags &= ~nbase_state_flag_TOKENIZING;
+#endif /* NBASE_STANDALONE */
 }
 
 /* ******************************************************************************** */
