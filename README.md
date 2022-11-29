@@ -26,11 +26,8 @@ Run <b>./build.sh</b> in the directory, executable is called <b>nbase</b>
 Eg.:
 </br>
 * 1
-</br>
 * 666
-</br>
 * %5 (negative)
-</br>
 * 0AH, 0AX (hex integer)
 
 ### <b>Float: 32bit (C's float type)</b>
@@ -38,11 +35,8 @@ Eg.:
 Eg.:
 </br>
 * 1.2
-</br>
 * 0AR (hex float)
-</br>
-* 1.2E2, 1.E+2, 2.6E-4 (exponential notation, E can be also D)
-</br>
+* 1.2E2, 1.E+2, 2.6E-4 (exponential notation, E can be also D). 
 NOTE: literal number format taken from Oberon07 parser.
 
 ### <b>String</b>
