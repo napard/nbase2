@@ -110,13 +110,14 @@ In data area:
 
 /*#define NBASE_DEFINE_PROPER_MAIN*/
 /*#define NBASE_DEFINE_ATEXTIT*/
+/*#define NBASE_CUSTOM_KEYWORDS*/
 
 /* -------------------------------------------------------------------------------- */
 /* Intrinsic interpreter macros. */
 
 #define NBASE_VERSION_MAYOR 0
 #define NBASE_VERSION_MINOR 1
-#define NBASE_VERSION_PATCH 7
+#define NBASE_VERSION_PATCH 8
 
 /*! Max line length. */
 #define NBASE_MAX_LINE_LEN              80
@@ -220,7 +221,15 @@ typedef enum _nbase_token
     nbase_token_PRINT_ALONE,
 #ifdef NBASE_INCLUDE_FEATURE_DEBUGTOOLS
     nbase_token_LVAR, nbase_token_STAT, nbase_token_DUMP,
+#define nbase_token_LAST_KEYWORD nbase_token_DUMP
+#else
+#define nbase_token_LAST_KEYWORD nbase_token_PRINT_ALONE
 #endif /* NBASE_INCLUDE_FEATURE_DEBUGTOOLS */
+
+#ifdef NBASE_CUSTOM_KEYWORDS
+#define NBASE_CUSTOM_KEYWORDS_TOKENS
+#include "nbase_custom.h" 
+#endif /* NBASE_CUSTOM_KEYWORDS */
 
     nbase_token_NL,
     nbase_token_EOL,
@@ -435,6 +444,11 @@ void                nbase_interpret_line(const char* pText);
 #include "../debugtools/dump.c"
 #endif /* NBASE_INCLUDE_FEATURE_DEBUGTOOLS */
 
+#ifdef NBASE_CUSTOM_KEYWORDS
+#define NBASE_CUSTOM_KEYWORDS_DEFINITIONS
+#include "nbase_custom.h"
+#endif /* NBASE_CUSTOM_KEYWORDS */
+
 #endif /* NBASE_DEFINITIONS */
 
 #ifdef NBASE_IMPLEMENTATION
@@ -469,6 +483,11 @@ char g_temp_buff[NBASE_MAX_LINE_LEN_PLUS_1];
 #define DEBUGTOOLS_DUMP_IMPLEMENTATION
 #include "../debugtools/dump.c"
 #endif /* NBASE_INCLUDE_FEATURE_DEBUGTOOLS */
+
+#ifdef NBASE_CUSTOM_KEYWORDS
+#define NBASE_CUSTOM_KEYWORDS_IMPLEMENTATION
+#include "nbase_custom.h"
+#endif /* NBASE_CUSTOM_KEYWORDS */
 
 /* -------------------------------------------------------------------------------- */
 
@@ -523,6 +542,11 @@ nbase_keyword g_nbase_keywords[] =
     
     {(char*)".",               nbase_keyword_LOADLINE, nbase_token_LOADLINE},
     
+#ifdef NBASE_CUSTOM_KEYWORDS
+#define NBASE_CUSTOM_KEYWORDS_TABLE
+#include "nbase_custom.h" 
+#endif /* NBASE_CUSTOM_KEYWORDS */
+
     {NULL,              NULL,                   0}
 };
 

@@ -5,6 +5,9 @@ gcc -Wall -g -pedantic \
     -DNBASE_IMPLEMENTATION \
     -DNBASE_DEFINE_PROPER_MAIN \
     -DNBASE_DEFINE_ATEXIT \
+    -DNBASE_ENABLE_LONGJMP_ERROR_RECOVERY \
+    -DNBASE_STANDALONE \
+    -DNBASE_IMPLEMENT_REPL \
     src/core/main.c -o nbase -lm
 
 
